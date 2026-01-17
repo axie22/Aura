@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "test:webhook": "tsx src/scripts/simulate-webhook.ts",
+    "verify:auth": "tsx src/scripts/verify-apps-auth.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
