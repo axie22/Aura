@@ -11,7 +11,6 @@ if (!SECRET) {
     process.exit(1);
 }
 
-// Mock Payload matching a minimal pull_request.synchronize event
 const payload = {
     action: 'synchronize',
     pull_request: {
@@ -22,10 +21,10 @@ const payload = {
     },
     repository: {
         name: 'Aura',
-        owner: { login: 'alexanderxie' }, // Replace with your username if needed
+        owner: { login: 'alexanderxie' },
     },
     installation: {
-        id: 12345, // Fake Installation ID
+        id: 12345, 
     },
 };
 
@@ -53,13 +52,13 @@ async function sendWebhook() {
         console.log(`Response Body: ${text}`);
 
         if (response.ok) {
-            console.log('✅ Webhook delivered successfully!');
+            console.log('Webhook delivered successfully!');
         } else {
-            console.error('❌ Webhook failed.');
+            console.error('Webhook failed.');
         }
 
     } catch (error: any) {
-        console.error('❌ Connection failed:', error.message);
+        console.error('Connection failed:', error.message);
         console.log('Make sure the server is running with "npm run dev"');
     }
 }
