@@ -21,7 +21,7 @@ export async function verifySignature(req: Request) {
          throw error;
     }
 
-    const isValid = await verify(secret, body, signature);
+    const isValid = await verify(secret, body.toString(), signature);
     if (!isValid) {
         const error = new Error('Invalid signature');
         (error as any).status = 401;

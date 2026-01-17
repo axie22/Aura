@@ -2,3 +2,4 @@ documents/plan.md
 .env
 dist/
 node_modules/
+src/scripts/*.js
