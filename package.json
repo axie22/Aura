@@ -17,12 +17,12 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-
   "bugs": {
     "url": "https://github.com/axie22/Aura/issues"
   },
   "homepage": "https://github.com/axie22/Aura#readme",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@octokit/webhooks-methods": "^6.0.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
