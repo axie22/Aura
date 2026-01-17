@@ -1,9 +1,11 @@
-import { octokit } from '../github/client.js';
+import { getInstallationOctokit } from '../github/client.js';
 
-export async function analyzeDiff(owner: string, repo: string, pullNumber: number) {
-    console.log(`Analyzing diff for ${owner}/${repo} PR #${pullNumber}`);
+export async function analyzeDiff(installationId: number, owner: string, repo: string, pullNumber: number) {
+    console.log(`Analyzing diff for ${owner}/${repo} PR #${pullNumber} (Installation ID: ${installationId})`);
 
     try {
+        const octokit = getInstallationOctokit(installationId);
+        
         const { data: files } = await octokit.rest.pulls.listFiles({
             owner,
             repo,
@@ -27,7 +29,7 @@ export async function analyzeDiff(owner: string, repo: string, pullNumber: numbe
             // In Phase 2, we will feed file.patch to the LLM
         }
         
-    } catch (error) {
-        console.error('Error fetching pull request files:', error);
+    } catch (error: any) {
+        console.error('Error fetching pull request files:', error.message);
     }
 }

@@ -14,9 +14,16 @@ export async function handleWebhook(req: Request) {
             const owner = repository.owner.login;
             const repo = repository.name;
 
-            console.log(`Processing PR #${number} in ${owner}/${repo}: ${action}`);
+            const installationId = payload.installation?.id;
+
+            if (!installationId) {
+                console.error('No installation ID found in webhook payload');
+                return;
+            }
+
+            console.log(`Processing PR #${number} in ${owner}/${repo}: ${action} (Installation: ${installationId})`);
             
-            await analyzeDiff(owner, repo, number);
+            await analyzeDiff(installationId, owner, repo, number);
         } else {
             console.log(`Ignoring pull_request action: ${action}`);
         }
