@@ -1,7 +1,51 @@
 import { Request } from 'express';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+import path from 'path';
 import { analyzeDiff } from '../diff/analyzer.js';
 import { PlaywrightRunner } from '../playwright-runner.js';
 import { WalkthroughScript, buildScriptBody } from '../agent/venv-playwright-runner.js';
+
+const s3Region = process.env.AWS_REGION;
+const s3Bucket = process.env.S3_BUCKET;
+
+let s3Client: S3Client | undefined;
+
+function getS3Client(): S3Client {
+    if (!s3Region || !s3Bucket) {
+        throw new Error('Missing AWS_REGION or S3_BUCKET environment variables for S3 uploads');
+    }
+
+    if (!s3Client) {
+        s3Client = new S3Client({ region: s3Region });
+    }
+    return s3Client;
+}
+
+async function uploadVideoToS3(localPath: string, keyPrefix: string): Promise<string | undefined> {
+    if (!s3Region || !s3Bucket) {
+        console.error('S3 upload skipped: AWS_REGION or S3_BUCKET is not configured');
+        return;
+    }
+
+    if (!fs.existsSync(localPath)) {
+        console.error('Video file does not exist at path:', localPath);
+        return;
+    }
+
+    const key = `${keyPrefix}/${path.basename(localPath)}`;
+    const client = getS3Client();
+    const fileStream = fs.createReadStream(localPath);
+
+    await client.send(new PutObjectCommand({
+        Bucket: s3Bucket,
+        Key: key,
+        Body: fileStream,
+        ContentType: 'video/webm',
+    }));
+
+    return `https://${s3Bucket}.s3.${s3Region}.amazonaws.com/${key}`;
+}
 
 export async function handleWebhook(req: Request) {
     const event = req.headers['x-github-event'] as string;
@@ -92,6 +136,18 @@ export async function handleWebhook(req: Request) {
                 });
 
                 console.log(`[PR #${number}] Playwright run result:`, result);
+
+                if (result.videoPath) {
+                    try {
+                        const prefix = `playwright-videos/${prId}`;
+                        const url = await uploadVideoToS3(result.videoPath, prefix);
+                        if (url) {
+                            console.log(`[PR #${number}] Uploaded Playwright video to S3: ${url}`);
+                        }
+                    } catch (uploadError: any) {
+                        console.error(`[PR #${number}] Failed to upload Playwright video to S3:`, uploadError?.message || uploadError);
+                    }
+                }
 
                 env.cleanup(true);
             } catch (e) {
