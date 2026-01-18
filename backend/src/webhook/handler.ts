@@ -5,6 +5,7 @@ import path from 'path';
 import { analyzeDiff } from '../diff/analyzer.js';
 import { PlaywrightRunner } from '../playwright-runner.js';
 import { WalkthroughScript, buildScriptBody } from '../agent/venv-playwright-runner.js';
+import { convertToMp4, generateGif } from '../utils/video.js';
 import { postPullRequestComment } from '../github/client.js';
 
 const s3Region = process.env.AWS_REGION;
@@ -23,14 +24,14 @@ function getS3Client(): S3Client {
     return s3Client;
 }
 
-async function uploadVideoToS3(localPath: string, keyPrefix: string): Promise<string | undefined> {
+async function uploadFileToS3(localPath: string, keyPrefix: string): Promise<string | undefined> {
     if (!s3Region || !s3Bucket) {
         console.error('S3 upload skipped: AWS_REGION or S3_BUCKET is not configured');
         return;
     }
 
     if (!fs.existsSync(localPath)) {
-        console.error('Video file does not exist at path:', localPath);
+        console.error('File does not exist at path:', localPath);
         return;
     }
 
@@ -38,11 +39,16 @@ async function uploadVideoToS3(localPath: string, keyPrefix: string): Promise<st
     const client = getS3Client();
     const fileStream = fs.createReadStream(localPath);
 
+    let contentType = 'application/octet-stream';
+    if (localPath.endsWith('.webm')) contentType = 'video/webm';
+    else if (localPath.endsWith('.mp4')) contentType = 'video/mp4';
+    else if (localPath.endsWith('.gif')) contentType = 'image/gif';
+
     await client.send(new PutObjectCommand({
         Bucket: s3Bucket,
         Key: key,
         Body: fileStream,
-        ContentType: 'video/webm',
+        ContentType: contentType,
         ACL: 'public-read',
     }));
 
@@ -142,11 +148,44 @@ export async function handleWebhook(req: Request) {
                 if (result.videoPath) {
                     try {
                         const prefix = `playwright-videos/${prId}`;
-                        const url = await uploadVideoToS3(result.videoPath, prefix);
-                        if (url) {
-                            console.log(`[PR #${number}] Uploaded Playwright video to S3: ${url}`);
+                        
+                        // 1. Upload original WebM
+                        const webmUrl = await uploadFileToS3(result.videoPath, prefix);
+                        console.log(`[PR #${number}] Uploaded WebM: ${webmUrl}`);
+
+                        let mp4Url: string | undefined;
+                        let gifUrl: string | undefined;
+
+                        try {
+                            // 2. Convert to MP4
+                            console.log(`[PR #${number}] Converting video to MP4...`);
+                            const mp4Path = await convertToMp4(result.videoPath);
+                            mp4Url = await uploadFileToS3(mp4Path, prefix);
+                            console.log(`[PR #${number}] Uploaded MP4: ${mp4Url}`);
+
+                            // 3. Generate GIF
+                            console.log(`[PR #${number}] Generating GIF preview...`);
+                            const gifPath = await generateGif(result.videoPath);
+                            gifUrl = await uploadFileToS3(gifPath, prefix);
+                            console.log(`[PR #${number}] Uploaded GIF: ${gifUrl}`);
+
+                        } catch (convError: any) {
+                            console.error(`[PR #${number}] Video conversion failed:`, convError.message);
+                        }
+
+                        const videoLink = mp4Url || webmUrl;
+
+                        if (videoLink) {
                             try {
-                              const commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Walkthrough Video\n\n<video src="${url}" controls="controls" width="100%"></video>\n\n[Direct Link](${url})`;
+                              let commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Walkthrough Video\n\n`;
+                              
+                              if (gifUrl) {
+                                  // Use the GIF as an image link to the video
+                                  commentBody += `[![Walkthrough Preview](${gifUrl})](${videoLink})\n\n> Click the preview to watch the full video.`;
+                              } else {
+                                  commentBody += `[Watch Video](${videoLink})`;
+                              }
+
                               await postPullRequestComment(installationId, owner, repo, number, commentBody);
                               console.log(`[PR #${number}] Posted video comment.`);
                             } catch (e: any) {
@@ -154,7 +193,7 @@ export async function handleWebhook(req: Request) {
                             }
                         }
                     } catch (uploadError: any) {
-                        console.error(`[PR #${number}] Failed to upload Playwright video to S3:`, uploadError?.message || uploadError);
+                        console.error(`[PR #${number}] Failed to process/upload videos:`, uploadError?.message || uploadError);
                     }
                 }
 
