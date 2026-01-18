@@ -105,7 +105,13 @@ export async function handleWebhook(req: Request) {
 
             if (!analysisResult || !analysisResult.uiFiles || analysisResult.uiFiles.length === 0) {
                 console.log(`[PR #${number}] No relevant UI changes. Cancelling VirtualEnv...`);
-                env.cleanup(true); // Kill process & delete dir
+                env.abort();
+                try {
+                    await envPromise;
+                } catch (e) {
+                    // Expected to fail with "Operation aborted"
+                }
+                await env.cleanup(true); // Kill process & delete dir
                 return;
             }
 
@@ -118,7 +124,7 @@ export async function handleWebhook(req: Request) {
 
                 if (!analysisResult.planJson) {
                     console.warn(`[PR #${number}] No planJson from analyzer. Skipping Playwright run.`);
-                    env.cleanup(true);
+                    await env.cleanup(true);
                     return;
                 }
 
@@ -127,10 +133,10 @@ export async function handleWebhook(req: Request) {
                     walkthroughScript = JSON.parse(analysisResult.planJson) as WalkthroughScript;
                 } catch (e) {
                     console.error(`[PR #${number}] Failed to parse planJson as WalkthroughScript.`, e);
-                    env.cleanup(true);
+                    await env.cleanup(true);
                     return;
                 }
-
+                
                 const hasGoto = walkthroughScript.steps.some(step => step.action === 'goto');
                 const route = hasGoto ? '' : (walkthroughScript.entryUrl || '');
                 const scriptBody = buildScriptBody(walkthroughScript);
@@ -207,8 +213,8 @@ export async function handleWebhook(req: Request) {
                                   commentBody += `[Watch Video](${videoLink})`;
                               }
 
-                                await postPullRequestComment(installationId, owner, repo, number, commentBody);
-                                console.log(`[PR #${number}] Posted video comment.`);
+                              await postPullRequestComment(installationId, owner, repo, number, commentBody);
+                              console.log(`[PR #${number}] Posted video comment.`);
                             } catch (e: any) {
                                 console.error(`[PR #${number}] Failed to post video comment:`, e.message);
                             }
@@ -218,11 +224,11 @@ export async function handleWebhook(req: Request) {
                     }
                 }
 
-                env.cleanup(true);
+                await env.cleanup(true);
             } catch (e: any) {
                 console.error(`[PR #${number}] Aborting due to environment failure:`, e);
                 if (e.stack) console.error(e.stack);
-                env.cleanup(true);
+                await env.cleanup(true);
             }
         } else {
             console.log(`Ignoring pull_request action: ${action}`);

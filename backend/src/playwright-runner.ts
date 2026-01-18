@@ -57,10 +57,17 @@ export class PlaywrightRunner {
 
         try {
             console.log('Navigating to targetUrl:', targetUrl);
-            await page.goto(targetUrl, {
-                waitUntil: 'load',
-                timeout: 45000,
+            await page.goto(targetUrl, { 
+                waitUntil: 'domcontentloaded',
+                timeout: 60000 
             });
+
+            // Soft wait for network idle - try for up to 5s but don't fail if it times out
+            try {
+                await page.waitForLoadState('networkidle', { timeout: 5000 });
+            } catch (e) {
+                console.log('Network did not idle within 5s, proceeding anyway...');
+            }
 
             console.log('Transpiling script body...');
             const transpiled = ts.transpileModule(job.scriptBody, {
