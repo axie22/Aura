@@ -105,6 +105,12 @@ export async function handleWebhook(req: Request) {
 
             if (!analysisResult || !analysisResult.uiFiles || analysisResult.uiFiles.length === 0) {
                 console.log(`[PR #${number}] No relevant UI changes. Cancelling VirtualEnv...`);
+                env.abort();
+                try {
+                    await envPromise;
+                } catch (e) {
+                    // Expected to fail with "Operation aborted"
+                }
                 await env.cleanup(true); // Kill process & delete dir
                 return;
             }
