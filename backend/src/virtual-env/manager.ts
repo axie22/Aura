@@ -127,10 +127,33 @@ export class VirtualEnv {
                  throw new Error(`Build setup failed: ${error.message}`);
             }
         }
+        
+        let finalStartCommand = startCommand;
+        try {
+            const pkgJsonPath = path.join(this.projectRoot, 'package.json');
+            const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, 'utf8'));
+            const scripts = pkgJson.scripts || {};
+            
+            const scriptName = startCommand.replace('npm run ', '').replace('npm ', '').trim();
 
-        // Start Process
-        console.log(`Starting server: ${startCommand} on port ${port}...`);
-        const [cmd, ...args] = startCommand.split(' ');
+            if (!scripts[scriptName]) {
+                console.warn(`WARNING: Script "${scriptName}" not found in package.json.`);
+                if (scripts.dev) {
+                    console.log('Falling back to "npm run dev"...');
+                    finalStartCommand = 'npm run dev';
+                } else if (scripts.serve) {
+                    console.log('Falling back to "npm run serve"...');
+                    finalStartCommand = 'npm run serve';
+                } else {
+                    console.warn('No "dev" or "serve" fallback found. Attempting requested command anyway.');
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to validate start script, proceeding blindly.');
+        }
+
+        console.log(`Starting server: ${finalStartCommand} on port ${port}...`);
+        const [cmd, ...args] = finalStartCommand.split(' ');
         
         this.serverProcess = spawn(cmd, args, {
             cwd: this.projectRoot,
