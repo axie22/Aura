@@ -43,6 +43,7 @@ async function uploadVideoToS3(localPath: string, keyPrefix: string): Promise<st
         Key: key,
         Body: fileStream,
         ContentType: 'video/webm',
+        ACL: 'public-read',
     }));
 
     return `https://${s3Bucket}.s3.${s3Region}.amazonaws.com/${key}`;

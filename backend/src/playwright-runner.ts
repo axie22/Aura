@@ -90,7 +90,6 @@ export class PlaywrightRunner {
 
         return {
             success,
-            error: errorMessage,
             videoPath,
         };
     }
