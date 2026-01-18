@@ -140,11 +140,28 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
 
         // 4. Call LLM
         console.log("Generating Playwright plan...");
-        const plan = await generatePlaywrightPlan(aggregatedDiff, repoContext, systemPrompt);
+        const planJsonString = await generatePlaywrightPlan(aggregatedDiff, repoContext, systemPrompt);
+
+        let planVariableName = "generatedWalkthrough";
+        try {
+            const planObj = JSON.parse(planJsonString);
+            if (planObj.name) {
+                // Convert "Verify Login Flow" -> "verifyLoginFlow"
+                planVariableName = planObj.name
+                    .replace(/(?:^\w|[A-Z]|\b\w)/g, (word: string, index: number) =>
+                        index === 0 ? word.toLowerCase() : word.toUpperCase())
+                    .replace(/\s+/g, '')
+                    .replace(/[^a-zA-Z0-9]/g, '');
+            }
+        } catch (e) {
+            console.warn("Could not parse JSON to generate variable name, using default.");
+        }
+
+        const tsOutput = `export const ${planVariableName} = ${planJsonString};`;
 
         console.log("---------------------------------------------------");
-        console.log("GENERATED PLAN:");
-        console.log(plan);
+        console.log("GENERATED PLAN (TypeScript):");
+        console.log(tsOutput);
         console.log("---------------------------------------------------");
 
         console.log("---------------------------------------------------");
@@ -152,10 +169,10 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
         console.log(`[Analyzer] Analysis complete. Returning ${uiFiles.length} UI files.`);
 
         // TODO: In Phase 3, we will save this plan or trigger the runner.
-        
-        
+
+
         return uiFiles;
-        
+
     } catch (error: any) {
         console.error('Error fetching pull request files:', error.message);
         return null;
