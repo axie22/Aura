@@ -76,7 +76,7 @@ function App() {
 
               <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground leading-relaxed">
                 Aura automatically reviews your pull request, records a real browser walkthrough,
-                and posts a concise summary with visual evidence.
+                and posts a summary with visual evidence.
                 Check out the demo below!
               </p>
             </div>
@@ -137,9 +137,9 @@ function App() {
 
                       {/* Bot Content */}
                       <div className="p-4 bg-[rgb(13,17,23)]">
-                        <h3 className="text-base font-semibold text-white mb-2">✨ Aura UI Review</h3>
+                        <h3 className="text-base font-semibold text-white mb-2">Aura Generated Review</h3>
                         <p className="text-sm text-[#c9d1d9] mb-4">
-                          I've analyzed the changes in this PR and recorded a video walkthrough of the new flows.
+                          User removed the delete button functionality.
                         </p>
 
                         {/* Video Placeholder */}
@@ -159,18 +159,9 @@ function App() {
                             00:42
                           </div>
                         </div>
-
-                        <div className="bg-[#161b22] rounded-md p-3 border border-[#30363d]">
-                          <h4 className="text-xs font-semibold text-[#8b949e] uppercase mb-2">Summary</h4>
-                          <ul className="text-sm space-y-1 list-disc list-inside text-[#c9d1d9]">
-                            <li>Modified <code className="bg-[#6e768166] px-1 py-0.5 rounded text-xs">Button.tsx</code> styles.</li>
-                            <li><span className="text-[#f78166]">⚠ Warning:</span> Hardcoded hex value detected.</li>
-                          </ul>
-                        </div>
                       </div>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
