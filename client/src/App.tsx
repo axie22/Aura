@@ -181,7 +181,7 @@ function App() {
               <FeatureCard
                 icon={<Bot className="h-6 w-6 text-purple-400" />}
                 title="Diff-Aware Summaries"
-                description="Gemini analyzes your changes to highlight visual impact and regressions."
+                description="Aura analyzes your changes to highlight visual impact and regressions."
               />
               <FeatureCard
                 icon={<Video className="h-6 w-6 text-indigo-400" />}
