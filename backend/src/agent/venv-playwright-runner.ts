@@ -5,7 +5,7 @@ export type WalkthroughAction = 'goto' | 'click' | 'fill' | 'assertText' | 'wait
 
 export interface WalkthroughStep {
     description: string;
-    action: WalkthroughAction;
+    action: WalkthroughAction;  
     target?: string;
     value?: string;
 }
@@ -34,7 +34,7 @@ export interface VenvRunResult {
 
 export function buildScriptBody(script: WalkthroughScript): string {
     const lines: string[] = [];
-    lines.push("await page.waitForLoadState('networkidle');");
+    lines.push("await page.waitForLoadState('load');");
 
     if (script.highlightSelectors && script.highlightSelectors.length > 0) {
         for (const sel of script.highlightSelectors) {

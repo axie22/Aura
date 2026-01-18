@@ -57,7 +57,10 @@ export class PlaywrightRunner {
 
         try {
             console.log('Navigating to targetUrl:', targetUrl);
-            await page.goto(targetUrl, { waitUntil: 'networkidle' });
+            await page.goto(targetUrl, {
+                waitUntil: 'load',
+                timeout: 45000,
+            });
 
             console.log('Transpiling script body...');
             const transpiled = ts.transpileModule(job.scriptBody, {
