@@ -14,15 +14,14 @@ export class VirtualEnv {
 
     constructor(private prId: string) {}
 
-    /**
-     * Creates a clean workspace in /tmp/aura-agent/{prId}
-     */
+
     async initialize(): Promise<string> {
         this.workDir = path.join(this.basePath, this.prId);
         
         try {
-            // Clean up existing if present
-            await fs.rm(this.workDir, { recursive: true, force: true });
+            // Clean up existing if present forcefully
+            // Using rm -rf via shell is more robust than fs.rm for deep node_modules
+            await execAsync(`rm -rf "${this.workDir}"`);
             await fs.mkdir(this.workDir, { recursive: true });
         } catch (error: any) {
             throw new Error(`Failed to initialize workspace: ${error.message}`);
@@ -30,6 +29,8 @@ export class VirtualEnv {
         
         return this.workDir;
     }
+
+
 
     /**
      * Shallow clones the repository branch
@@ -189,18 +190,25 @@ export class VirtualEnv {
     /**
      * Cleans up the server process and the workspace
      */
-    cleanup(deleteWorkspace: boolean = false): void {
+    async cleanup(deleteWorkspace: boolean = false): Promise<void> {
         if (this.serverProcess) {
             console.log('Stopping server process...');
             try {
+                // Check if pid exists before killing
                 process.kill(-this.serverProcess.pid); 
             } catch (e) {
+                // Process might be already gone
             }
             this.serverProcess = null;
         }
 
         if (deleteWorkspace && this.workDir) {
-           fs.rm(this.workDir, { recursive: true, force: true });
+           try {
+               // Use rm -rf for robustness
+               await execAsync(`rm -rf "${this.workDir}"`);
+           } catch (e) {
+               console.error(`Failed to delete workspace ${this.workDir}:`, e);
+           }
         }
     }
 }

@@ -7,7 +7,6 @@ export interface AnalyzeDiffResult {
     summary: string;
 }
 
-// Helper: Fetch repo context via GitHub API
 async function fetchRepoContext(octokit: any, owner: string, repo: string, branch: string = 'main'): Promise<string> {
     console.log(`[Analyzer] fetchRepoContext called for ${owner}/${repo} on branch ${branch}`);
     try {
@@ -21,7 +20,6 @@ async function fetchRepoContext(octokit: any, owner: string, repo: string, branc
         console.log(`[Analyzer] Tree fetched. Total items: ${treeData.tree.length}`);
 
         // Filter for relevant files (tsx, ts, css) and ignore node_modules/dist
-        // Limit to top 30 files to avoid rate limits
         const relevantFiles = treeData.tree
             .filter((file: any) =>
                 file.type === 'blob' &&
