@@ -146,7 +146,7 @@ export async function handleWebhook(req: Request) {
                         if (url) {
                             console.log(`[PR #${number}] Uploaded Playwright video to S3: ${url}`);
                             try {
-                              const commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Walkthrough Video\n\nHere is the recording of the generated plan:\n\n${url}`;
+                              const commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Walkthrough Video\n\n<video src="${url}" controls="controls" width="100%"></video>\n\n[Direct Link](${url})`;
                               await postPullRequestComment(installationId, owner, repo, number, commentBody);
                               console.log(`[PR #${number}] Posted video comment.`);
                             } catch (e: any) {
