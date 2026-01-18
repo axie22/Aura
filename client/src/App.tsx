@@ -1,4 +1,4 @@
-import { Github, Zap, Video, Bot, Terminal, Play, GitPullRequest, GitCommit, Check, MessageSquare } from 'lucide-react'
+import { Github, Zap, Video, Bot, Terminal, Play, GitPullRequest } from 'lucide-react'
 
 function App() {
   return (
