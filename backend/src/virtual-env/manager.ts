@@ -53,7 +53,6 @@ export class VirtualEnv {
     private async detectProjectRoot(): Promise<void> {
         if (!this.workDir) return;
         
-        // 1. Check root
         const rootPkg = path.join(this.workDir, 'package.json');
         try {
             await fs.access(rootPkg);
@@ -61,10 +60,10 @@ export class VirtualEnv {
             console.log(`Project root detected at: ${this.projectRoot}`);
             return;
         } catch {
-            // Not in root
+            
         }
 
-        // 2. Search depth 1 (e.g. /backend/package.json)
+        // 2. Search depth 1
         console.log("package.json not found in root. Searching subdirectories...");
         const entries = await fs.readdir(this.workDir, { withFileTypes: true });
         const dirs = entries.filter(dirent => dirent.isDirectory());
@@ -82,7 +81,7 @@ export class VirtualEnv {
         }
 
         console.warn("WARNING: No package.json found in root or immediate subdirectories.");
-        this.projectRoot = this.workDir; // Fallback to root even if invalid
+        this.projectRoot = this.workDir;
     }
 
     /**
@@ -93,7 +92,6 @@ export class VirtualEnv {
         
         console.log(`Installing dependencies in ${this.projectRoot}...`);
         try {
-            // Check for package-lock.json
             try {
                 await fs.access(path.join(this.projectRoot, 'package-lock.json'));
                 await execAsync('npm ci', { cwd: this.projectRoot });
@@ -113,7 +111,6 @@ export class VirtualEnv {
     async startServer(buildCommand: string = 'npm run build', startCommand: string = 'npm start', port: number = 3000): Promise<string> {
         if (!this.projectRoot) throw new Error("Project root not detected");
 
-        // 1. Build
         if (buildCommand) {
             console.log(`Running build: ${buildCommand}...`);
             try {
@@ -123,24 +120,24 @@ export class VirtualEnv {
             }
         }
 
-        // 2. Start Process
+        // Start Process
         console.log(`Starting server: ${startCommand} on port ${port}...`);
         const [cmd, ...args] = startCommand.split(' ');
         
         this.serverProcess = spawn(cmd, args, {
             cwd: this.projectRoot,
-            detached: true, // Allows process to have its own group, useful for killing
-            stdio: 'ignore', // Ignore stdio to allow it to run in background independently
+            detached: true, // Allows process to have its own group
+            stdio: 'inherit',
             env: { ...process.env, PORT: port.toString() }
         });
 
         // Detach so the parent can exit independently if needed, though we track it
         this.serverProcess.unref();
 
-        // 3. Health Check
+        // Health Check
         const url = `http://localhost:${port}`;
         const startTime = Date.now();
-        const timeoutMs = 90000; // 90 seconds
+        const timeoutMs = 90000;
 
         while (Date.now() - startTime < timeoutMs) {
             try {
@@ -150,7 +147,6 @@ export class VirtualEnv {
                     return url;
                 }
             } catch (e) {
-                // Connection refused/timeout, keep waiting
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -166,17 +162,14 @@ export class VirtualEnv {
         if (this.serverProcess) {
             console.log('Stopping server process...');
             try {
-                // Kill the entire process group
                 process.kill(-this.serverProcess.pid); 
             } catch (e) {
-                // Process might already be dead
             }
             this.serverProcess = null;
         }
 
         if (deleteWorkspace && this.workDir) {
-           // Intentionally leaving this optional/manual for now to allow inspection
-           // fs.rm(this.workDir, { recursive: true, force: true });
+           fs.rm(this.workDir, { recursive: true, force: true });
         }
     }
 }
