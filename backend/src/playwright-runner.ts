@@ -56,8 +56,10 @@ export class PlaywrightRunner {
         const video = page.video();
 
         try {
+            console.log('Navigating to targetUrl:', targetUrl);
             await page.goto(targetUrl, { waitUntil: 'networkidle' });
 
+            console.log('Transpiling script body...');
             const transpiled = ts.transpileModule(job.scriptBody, {
                 compilerOptions: {
                     target: ts.ScriptTarget.ES2022,
@@ -65,9 +67,12 @@ export class PlaywrightRunner {
                 },
             }).outputText;
 
+            console.log('Creating async function...');
             const asyncFn = new Function('page', `return (async () => { ${transpiled} })();`);
 
+            console.log('Executing async function...');
             await asyncFn(page);
+            console.log('Async function executed.');
 
             if (tailWait > 0) {
                 await page.waitForTimeout(tailWait);
@@ -75,6 +80,7 @@ export class PlaywrightRunner {
 
             success = true;
         } catch (error: any) {
+            console.error('PlaywrightRunner error caught:', error);
             errorMessage = error?.message ?? String(error);
             success = false;
         } finally {
