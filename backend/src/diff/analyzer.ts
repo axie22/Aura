@@ -1,6 +1,11 @@
 import { getInstallationOctokit, postPullRequestComment } from '../github/client.js';
 import { generatePlaywrightPlan } from '../llm/gemini.js';
 
+export interface AnalyzeDiffResult {
+    uiFiles: any[];
+    planJson: string;
+}
+
 // Helper: Fetch repo context via GitHub API
 async function fetchRepoContext(octokit: any, owner: string, repo: string, branch: string = 'main'): Promise<string> {
     console.log(`[Analyzer] fetchRepoContext called for ${owner}/${repo} on branch ${branch}`);
@@ -55,7 +60,7 @@ async function fetchRepoContext(octokit: any, owner: string, repo: string, branc
     }
 }
 
-export async function analyzeDiff(installationId: number, owner: string, repo: string, pullNumber: number): Promise<any[] | null> {
+export async function analyzeDiff(installationId: number, owner: string, repo: string, pullNumber: number): Promise<AnalyzeDiffResult | null> {
     console.log(`Analyzing diff for ${owner}/${repo} PR #${pullNumber} (Installation ID: ${installationId})`);
 
     try {
@@ -175,12 +180,12 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
 
         console.log("---------------------------------------------------");
 
-        console.log(`[Analyzer] Analysis complete. Returning ${uiFiles.length} UI files.`);
+        console.log(`[Analyzer] Analysis complete. Returning ${uiFiles.length} UI files and plan JSON.`);
 
-        // TODO: In Phase 3, we will save this plan or trigger the runner.
-
-
-        return uiFiles;
+        return {
+            uiFiles,
+            planJson: planJsonString,
+        };
 
     } catch (error: any) {
         console.error('Error fetching pull request files:', error.message);

@@ -31,7 +31,8 @@
     "@octokit/webhooks-methods": "^6.0.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "octokit": "^5.0.5"
+    "octokit": "^5.0.5",
+    "playwright": "^1.57.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
