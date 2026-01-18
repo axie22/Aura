@@ -5,7 +5,7 @@ export type WalkthroughAction = 'goto' | 'click' | 'fill' | 'assertText' | 'wait
 
 export interface WalkthroughStep {
     description: string;
-    action: WalkthroughAction;
+    action: WalkthroughAction;  
     target?: string;
     value?: string;
 }
