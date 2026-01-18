@@ -11,6 +11,7 @@
     "test:webhook": "tsx src/scripts/simulate-webhook.ts",
     "verify:auth": "tsx src/scripts/verify-apps-auth.ts",
     "test:gemini": "tsx src/scripts/test-gemini.ts",
+    "test:venv": "tsx src/scripts/test-virtual-env.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
