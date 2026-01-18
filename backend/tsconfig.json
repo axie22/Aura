@@ -4,7 +4,7 @@
     "module": "Node16",
     "moduleResolution": "node16",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "backend/src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,7 +14,7 @@
     "esm": true
   },
   "include": [
-    "src/**/*"
+    "backend/src/**/*"
   ],
   "exclude": [
     "node_modules"
