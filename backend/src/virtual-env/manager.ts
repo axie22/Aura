@@ -112,11 +112,19 @@ export class VirtualEnv {
         if (!this.projectRoot) throw new Error("Project root not detected");
 
         if (buildCommand) {
-            console.log(`Running build: ${buildCommand}...`);
             try {
-                await execAsync(buildCommand, { cwd: this.projectRoot });
+                const pkgJsonPath = path.join(this.projectRoot, 'package.json');
+                const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, 'utf8'));
+                const scriptName = buildCommand.replace('npm run ', '').trim();
+                
+                if (pkgJson.scripts && pkgJson.scripts[scriptName]) {
+                    console.log(`Running build: ${buildCommand}...`);
+                    await execAsync(buildCommand, { cwd: this.projectRoot });
+                } else {
+                    console.log(`Skipping build: script "${scriptName}" not found in package.json`);
+                }
             } catch (error: any) {
-                throw new Error(`Build failed: ${error.message}`);
+                 throw new Error(`Build setup failed: ${error.message}`);
             }
         }
 
