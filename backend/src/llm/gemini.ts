@@ -47,3 +47,43 @@ export async function generatePlaywrightPlan(
         return JSON.stringify({ error: error.message });
     }
 }
+
+export async function generatePRSummary(
+    diff: string,
+    repoContext: string
+): Promise<string> {
+    if (!process.env.GEMINI_API_KEY) {
+        return "Error: Missing API Key";
+    }
+
+    try {
+        const model = genAI.getGenerativeModel({
+            model: "gemini-flash-latest",
+            generationConfig: { responseMimeType: "text/plain" }
+        });
+
+        const prompt = `
+            You are a helpful assistant for a developer tool.
+            
+            Goal: Read the provided Pull Request Diff and Repository Context.
+            Output: A single, concise sentence summarizing what these changes do from a user/product perspective.
+            
+            - Keep it under 20 words.
+            - Do not mention file names or technical jargon (like "refactor", "component").
+            - Focus on the *feature* or *fix*.
+            
+            Diff:
+            ${diff}
+            
+            Context:
+            ${repoContext}
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text().trim();
+    } catch (error: any) {
+        console.error("Error generating summary:", error);
+        return "Updates to the application.";
+    }
+}

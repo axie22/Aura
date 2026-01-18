@@ -1,5 +1,5 @@
 import { getInstallationOctokit, postPullRequestComment } from '../github/client.js';
-import { generatePlaywrightPlan } from '../llm/gemini.js';
+import { generatePlaywrightPlan, generatePRSummary } from '../llm/gemini.js';
 
 export interface AnalyzeDiffResult {
     uiFiles: any[];
@@ -148,8 +148,11 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
             `;
 
         // 4. Call LLM
-        console.log("Generating Playwright plan...");
-        const planJsonString = await generatePlaywrightPlan(aggregatedDiff, repoContext, systemPrompt);
+        console.log("Generating Playwright plan and summary...");
+        const [planJsonString, summary] = await Promise.all([
+            generatePlaywrightPlan(aggregatedDiff, repoContext, systemPrompt),
+            generatePRSummary(aggregatedDiff, repoContext)
+        ]);
 
         let planVariableName = "generatedWalkthrough";
         try {
@@ -175,7 +178,7 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
         console.log("---------------------------------------------------");
 
         try {
-            const commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Aura Generated Plan\n\n\`\`\`typescript\n${tsOutput}\n\`\`\``;
+            const commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Aura Generated Plan\n\n**Summary:** ${summary}\n\n\`\`\`typescript\n${tsOutput}\n\`\`\``;
             await postPullRequestComment(installationId, owner, repo, pullNumber, commentBody);
             console.log(`[Analyzer] Posted comment to PR #${pullNumber}`);
         } catch (error: any) {
