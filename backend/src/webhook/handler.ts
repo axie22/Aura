@@ -130,8 +130,93 @@ export async function handleWebhook(req: Request) {
                     await env.cleanup(true);
                     return;
                 }
+                
+                const hasGoto = walkthroughScript.steps.some(step => step.action === 'goto');
+                const route = hasGoto ? '' : (walkthroughScript.entryUrl || '');
+                const scriptBody = buildScriptBody(walkthroughScript);
 
-                // ... (skipping unchanged parts)
+                const runner = new PlaywrightRunner();
+                const result = await runner.run({
+                    baseUrl: localUrl,
+                    route,
+                    scriptBody,
+                    postScriptWaitMs: 1000,
+                });
+
+                console.log(`[PR #${number}] Playwright run result:`, result);
+
+                if (result.videoPath) {
+                    try {
+                        const prefix = `playwright-videos/${prId}`;
+
+                        // 1. Upload original WebM
+                        const webmUrl = await uploadFileToS3(result.videoPath, prefix);
+                        console.log(`[PR #${number}] Uploaded WebM: ${webmUrl}`);
+
+                        let mp4Url: string | undefined;
+                        let gifUrl: string | undefined;
+
+                        try {
+                            // 2. Convert to MP4
+                            console.log(`[PR #${number}] Converting video to MP4...`);
+                            const mp4Path = await convertToMp4(result.videoPath);
+                            mp4Url = await uploadFileToS3(mp4Path, prefix);
+                            console.log(`[PR #${number}] Uploaded MP4: ${mp4Url}`);
+
+                            // 3. Generate GIF
+                            console.log(`[PR #${number}] Generating GIF preview...`);
+                            const gifPath = await generateGif(result.videoPath);
+                            gifUrl = await uploadFileToS3(gifPath, prefix);
+                            console.log(`[PR #${number}] Uploaded GIF: ${gifUrl}`);
+
+                        } catch (convError: any) {
+                            console.error(`[PR #${number}] Video conversion failed:`, convError.message);
+                        }
+
+                        const logoPath = path.resolve(process.cwd(), 'public/Aura.png');
+                        let logoUrl = "https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true"; // Fallback
+                        
+                        try {
+                            if (fs.existsSync(logoPath)) {
+                                const uploadedLogo = await uploadFileToS3(logoPath, 'assets'); // Shared assets folder
+                                if (uploadedLogo) logoUrl = uploadedLogo;
+                                console.log(`[PR #${number}] Uploaded Logo: ${logoUrl}`);
+                            } else {
+                                console.warn(`[PR #${number}] Logo not found at ${logoPath}`);
+                            }
+                        } catch (logoError) {
+                            console.error(`[PR #${number}] Failed to upload logo:`, logoError);
+                        }
+
+                        // Prefer MP4 for link, WebM fallback
+                        const videoLink = mp4Url || webmUrl;
+
+                        if (videoLink) {
+                            try {
+                              let commentBody = `### <img src="${logoUrl}" width="35" /> Aura Walkthrough\n\n`;
+                              
+                              // Add Summary
+                              if (analysisResult.summary) {
+                                  commentBody += `**Summary**\n${analysisResult.summary}\n\n`;
+                              }
+
+                              // Add Video
+                              if (gifUrl) {
+                                  commentBody += `[![Walkthrough Preview](${gifUrl})](${videoLink})\n\n> Click the preview to watch the full video.`;
+                              } else {
+                                  commentBody += `[Watch Video](${videoLink})`;
+                              }
+
+                              await postPullRequestComment(installationId, owner, repo, number, commentBody);
+                              console.log(`[PR #${number}] Posted video comment.`);
+                            } catch (e: any) {
+                                console.error(`[PR #${number}] Failed to post video comment:`, e.message);
+                            }
+                        }
+                    } catch (uploadError: any) {
+                        console.error(`[PR #${number}] Failed to process/upload videos:`, uploadError?.message || uploadError);
+                    }
+                }
 
                 await env.cleanup(true);
             } catch (e: any) {
