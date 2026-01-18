@@ -156,7 +156,7 @@ export class VirtualEnv {
     }
 
     /**
-     * Cleans up the server process and (optionally) the workspace
+     * Cleans up the server process and the workspace
      */
     cleanup(deleteWorkspace: boolean = false): void {
         if (this.serverProcess) {
