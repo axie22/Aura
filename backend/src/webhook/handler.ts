@@ -148,7 +148,7 @@ export async function handleWebhook(req: Request) {
                 if (result.videoPath) {
                     try {
                         const prefix = `playwright-videos/${prId}`;
-                        
+
                         // 1. Upload original WebM
                         const webmUrl = await uploadFileToS3(result.videoPath, prefix);
                         console.log(`[PR #${number}] Uploaded WebM: ${webmUrl}`);
@@ -177,19 +177,19 @@ export async function handleWebhook(req: Request) {
 
                         if (videoLink) {
                             try {
-                              let commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Walkthrough Video\n\n`;
-                              
-                              if (gifUrl) {
-                                  // Use the GIF as an image link to the video
-                                  commentBody += `[![Walkthrough Preview](${gifUrl})](${videoLink})\n\n> Click the preview to watch the full video.`;
-                              } else {
-                                  commentBody += `[Watch Video](${videoLink})`;
-                              }
+                                let commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Walkthrough Video\n\n`;
 
-                              await postPullRequestComment(installationId, owner, repo, number, commentBody);
-                              console.log(`[PR #${number}] Posted video comment.`);
+                                if (gifUrl) {
+                                    // Use the GIF as an image link to the video
+                                    commentBody += `[![Walkthrough Preview](${gifUrl})](${videoLink})\n\n> Click the preview to watch the full video.`;
+                                } else {
+                                    commentBody += `[Watch Video](${videoLink})`;
+                                }
+
+                                await postPullRequestComment(installationId, owner, repo, number, commentBody);
+                                console.log(`[PR #${number}] Posted video comment.`);
                             } catch (e: any) {
-                              console.error(`[PR #${number}] Failed to post video comment:`, e.message);
+                                console.error(`[PR #${number}] Failed to post video comment:`, e.message);
                             }
                         }
                     } catch (uploadError: any) {
