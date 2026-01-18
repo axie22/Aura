@@ -3,6 +3,7 @@ import { generatePlaywrightPlan } from '../llm/gemini.js';
 
 // Helper: Fetch repo context via GitHub API
 async function fetchRepoContext(octokit: any, owner: string, repo: string, branch: string = 'main'): Promise<string> {
+    console.log(`[Analyzer] fetchRepoContext called for ${owner}/${repo} on branch ${branch}`);
     try {
         // Get the tree recursively
         const { data: treeData } = await octokit.rest.git.getTree({
@@ -11,6 +12,7 @@ async function fetchRepoContext(octokit: any, owner: string, repo: string, branc
             tree_sha: branch,
             recursive: 'true'
         });
+        console.log(`[Analyzer] Tree fetched. Total items: ${treeData.tree.length}`);
 
         // Filter for relevant files (tsx, ts, css) and ignore node_modules/dist
         // Limit to top 30 files to avoid rate limits
@@ -44,6 +46,7 @@ async function fetchRepoContext(octokit: any, owner: string, repo: string, branc
                 console.warn(`Failed to fetch content for ${file.path}`);
             }
         }
+        console.log(`[Analyzer] Context construction complete. Total length: ${context.length}`);
         return context;
 
     } catch (error) {
@@ -67,6 +70,7 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
             pull_number: pullNumber
         });
         const branch = prData.head.ref; // The feature branch
+        console.log(`[Analyzer] PR Head Branch: ${branch}`);
 
         const { data: files } = await octokit.rest.pulls.listFiles({
             owner,
@@ -143,9 +147,12 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
         console.log(plan);
         console.log("---------------------------------------------------");
 
-        // TODO: In Phase 3, we will save this plan or trigger the runner.
+        console.log("---------------------------------------------------");
 
-        }
+        console.log(`[Analyzer] Analysis complete. Returning ${uiFiles.length} UI files.`);
+
+        // TODO: In Phase 3, we will save this plan or trigger the runner.
+        
         
         return uiFiles;
         
