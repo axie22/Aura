@@ -113,6 +113,7 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
             You are a Senior Frontend QA Engineer writing Playwright walkthrough plans.
 
             Goal: produce a SHORT, reliable UI walkthrough plan based on a PR diff and the repository context.
+            This is a VISUAL DEMO only. Do NOT include any verification or assertion steps.
 
             Output ONLY valid JSON matching this interface:
 
@@ -121,9 +122,9 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
             entryUrl: string;
             steps: {
                 description: string;
-                action: 'goto' | 'click' | 'fill' | 'assertText' | 'wait';
+                action: 'goto' | 'click' | 'fill'  | 'wait';
                 target?: string; // selector or url
-                value?: string; // value to fill or assert
+                value?: string; // value to fill
             }[];
             }
 
@@ -135,12 +136,15 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
                 { "description": "Navigate to login", "action": "goto", "target": "/login" },
                 { "description": "Fill email", "action": "fill", "target": "input[name='email']", "value": "test@example.com" },
                 { "description": "Click submit", "action": "click", "target": "button[type='submit']" },
-                { "description": "Verify dashboard", "action": "assertText", "target": "h1", "value": "Dashboard" }
+                { "description": "Wait for navigation", "action": "wait" }
             ]
             }
 
+            Guidelines:
             - Prefer stable selectors: getByRole(), getByLabel(), and data-testid if available.
             - Focus ONLY on flows likely impacted by the changed files.
+            - STRICTLY FORBIDDEN: Do not use 'assertText' or any verification steps. The agent should only interact with the UI.
+            - Use 'wait' if necessary to ensure elements are loaded, but prefer auto-waiting selectors.
             `;
 
         // 4. Call LLM
