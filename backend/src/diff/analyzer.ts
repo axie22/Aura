@@ -1,4 +1,4 @@
-import { getInstallationOctokit } from '../github/client.js';
+import { getInstallationOctokit, postPullRequestComment } from '../github/client.js';
 import { generatePlaywrightPlan } from '../llm/gemini.js';
 
 export interface AnalyzeDiffResult {
@@ -153,8 +153,9 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
             if (planObj.name) {
                 // Convert "Verify Login Flow" -> "verifyLoginFlow"
                 planVariableName = planObj.name
-                    .replace(/(?:^\w|[A-Z]|\b\w)/g, (word: string, index: number) =>
-                        index === 0 ? word.toLowerCase() : word.toUpperCase())
+                    .replace(/(?:^\w|[A-Z]|\b\w)/g, (word: string, index: number) => {
+                        return index === 0 ? word.toLowerCase() : word.toUpperCase();
+                    })
                     .replace(/\s+/g, '')
                     .replace(/[^a-zA-Z0-9]/g, '');
             }
@@ -168,6 +169,14 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
         console.log("GENERATED PLAN (TypeScript):");
         console.log(tsOutput);
         console.log("---------------------------------------------------");
+
+        try {
+            const commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Aura Generated Plan\n\n\`\`\`typescript\n${tsOutput}\n\`\`\``;
+            await postPullRequestComment(installationId, owner, repo, pullNumber, commentBody);
+            console.log(`[Analyzer] Posted comment to PR #${pullNumber}`);
+        } catch (error: any) {
+            console.error(`[Analyzer] Failed to post comment: ${error.message}`);
+        }
 
         console.log("---------------------------------------------------");
 

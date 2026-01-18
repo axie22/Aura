@@ -35,3 +35,13 @@ export function getInstallationOctokit(installationId: number): Octokit {
     },
   });
 }
+
+export async function postPullRequestComment(installationId: number, owner: string, repo: string, pullNumber: number, body: string): Promise<void> {
+  const octokit = getInstallationOctokit(installationId);
+  await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: pullNumber,
+    body
+  });
+}
