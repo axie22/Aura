@@ -55,7 +55,7 @@ function App() {
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4 w-full justify-center animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
               <a
-                href="https://github.com/apps/aura"
+                href="https://github.com/apps/aurapr"
                 className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-medium text-white shadow-lg shadow-purple-500/25 transition-all hover:bg-primary/90 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
               >
                 Install Aura Bot
