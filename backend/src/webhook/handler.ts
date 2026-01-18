@@ -94,8 +94,9 @@ export async function handleWebhook(req: Request) {
                 console.log(`[PR #${number}] Playwright run result:`, result);
 
                 env.cleanup(true);
-            } catch (e) {
-                console.error(`[PR #${number}] Aborting due to environment failure.`);
+            } catch (e: any) {
+                console.error(`[PR #${number}] Aborting due to environment failure:`, e);
+                if (e.stack) console.error(e.stack);
                 env.cleanup(true);
             }
         } else {
