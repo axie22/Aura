@@ -34,7 +34,9 @@ export interface VenvRunResult {
 
 export function buildScriptBody(script: WalkthroughScript): string {
     const lines: string[] = [];
-    lines.push("await page.waitForLoadState('load');");
+    lines.push("await page.waitForLoadState('domcontentloaded');");
+    // Soft wait for network idle
+    lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
 
     if (script.highlightSelectors && script.highlightSelectors.length > 0) {
         for (const sel of script.highlightSelectors) {
@@ -52,7 +54,8 @@ export function buildScriptBody(script: WalkthroughScript): string {
 
     for (const step of script.steps) {
         if (step.action === 'goto' && step.target) {
-            lines.push(`await page.goto(${JSON.stringify(step.target)}, { waitUntil: 'networkidle' });`);
+            lines.push(`await page.goto(${JSON.stringify(step.target)}, { waitUntil: 'domcontentloaded' });`);
+            lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
         } else if (step.action === 'click' && step.target) {
             lines.push(`await page.click(${JSON.stringify(step.target)});`);
         } else if (step.action === 'fill' && step.target && step.value !== undefined) {
