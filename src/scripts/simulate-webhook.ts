@@ -10,24 +10,25 @@ if (!SECRET) {
     process.exit(1);
 }
 
+// Payload matching PR #9 on axie22/Aura (Has UI Changes)
 const payload = {
     action: 'synchronize',
     pull_request: {
         number: 9,
         title: 'Deployment Fixes w Docker',
         head: { 
-            sha: 'a166237b8837540b1d1c3ff98106174ae89abb76', 
-            ref: 'deplyoment'
+            sha: 'a166237b8837540b1d1c3ff98106174ae89abb76', // Commit from PR #9
+            ref: 'deplyoment' // The branch name
         },
         base: { sha: '791d36b55c383cf930c4ef8f6977001ee636fd0b' },
     },
     repository: {
         name: 'Aura',
         owner: { login: 'axie22' },
-        clone_url: 'https://github.com/axie22/Aura.git',
+        clone_url: 'https://github.com/axie22/Aura.git', // Use real clone URL
     },
     installation: {
-        id: 104760035,
+        id: 104760035, // Real Installation ID
     },
 };
 
