@@ -5,6 +5,7 @@ import path from 'path';
 import { analyzeDiff } from '../diff/analyzer.js';
 import { PlaywrightRunner } from '../playwright-runner.js';
 import { WalkthroughScript, buildScriptBody } from '../agent/venv-playwright-runner.js';
+import { postPullRequestComment } from '../github/client.js';
 
 const s3Region = process.env.AWS_REGION;
 const s3Bucket = process.env.S3_BUCKET;
@@ -143,6 +144,13 @@ export async function handleWebhook(req: Request) {
                         const url = await uploadVideoToS3(result.videoPath, prefix);
                         if (url) {
                             console.log(`[PR #${number}] Uploaded Playwright video to S3: ${url}`);
+                            try {
+                              const commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Walkthrough Video\n\nHere is the recording of the generated plan:\n\n${url}`;
+                              await postPullRequestComment(installationId, owner, repo, number, commentBody);
+                              console.log(`[PR #${number}] Posted video comment.`);
+                            } catch (e: any) {
+                              console.error(`[PR #${number}] Failed to post video comment:`, e.message);
+                            }
                         }
                     } catch (uploadError: any) {
                         console.error(`[PR #${number}] Failed to upload Playwright video to S3:`, uploadError?.message || uploadError);
