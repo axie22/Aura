@@ -14,8 +14,13 @@ Aura sits in your repo and watches for changes. When a PR is opened:
 3.  **Generates a Plan:** Uses **Google Gemini 1.5 Flash** to create a custom **Playwright** walkthrough script tailored to that specific change.
 4.  **Delivers Feedback:** Posts a concise summary and the video walkthrough directly to the PR comments.
 
-## Setup
-
 ## How to Run
+
+**Zero Setup Required.**
+
+1.  **Install Aura:** Go to [https://github.com/apps/aurapr](https://github.com/apps/aurapr).
+2.  **Select Repository:** Choose the repository you want Aura to review.
+3.  **Allow Access:** Grant standard permissions.
+4.  **Done!** Open a PR with a `.tsx` or `.css` change and watch Aura convert your diff into a video walkthrough automatically.
 
 
