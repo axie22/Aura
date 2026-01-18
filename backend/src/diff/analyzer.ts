@@ -1,9 +1,10 @@
-import { getInstallationOctokit, postPullRequestComment } from '../github/client.js';
+import { getInstallationOctokit } from '../github/client.js';
 import { generatePlaywrightPlan, generatePRSummary } from '../llm/gemini.js';
 
 export interface AnalyzeDiffResult {
     uiFiles: any[];
     planJson: string;
+    summary: string;
 }
 
 // Helper: Fetch repo context via GitHub API
@@ -66,9 +67,7 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
     try {
         const octokit = getInstallationOctokit(installationId);
 
-        // Get PR details to find the head branch (so we fetch context from the feature branch, or we could use base 'main')
-        // Using 'main' (base) is usually safer for context, but using head gives the full picture.
-        // Let's use the PR's head ref for the most up-to-date context.
+        // Get PR details to find the head branch
         const { data: prData } = await octokit.rest.pulls.get({
             owner,
             repo,
@@ -177,21 +176,14 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
         console.log(tsOutput);
         console.log("---------------------------------------------------");
 
-        try {
-            const commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Aura Generated Plan\n\n**Summary:** ${summary}\n\n\`\`\`typescript\n${tsOutput}\n\`\`\``;
-            await postPullRequestComment(installationId, owner, repo, pullNumber, commentBody);
-            console.log(`[Analyzer] Posted comment to PR #${pullNumber}`);
-        } catch (error: any) {
-            console.error(`[Analyzer] Failed to post comment: ${error.message}`);
-        }
-
-        console.log("---------------------------------------------------");
+        // Comment posting moved to handler.ts to combine with video
 
         console.log(`[Analyzer] Analysis complete. Returning ${uiFiles.length} UI files and plan JSON.`);
 
         return {
             uiFiles,
             planJson: planJsonString,
+            summary
         };
 
     } catch (error: any) {

@@ -173,18 +173,39 @@ export async function handleWebhook(req: Request) {
                             console.error(`[PR #${number}] Video conversion failed:`, convError.message);
                         }
 
+                        const logoPath = path.resolve(process.cwd(), 'public/Aura.png');
+                        let logoUrl = "https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true"; // Fallback
+                        
+                        try {
+                            if (fs.existsSync(logoPath)) {
+                                const uploadedLogo = await uploadFileToS3(logoPath, 'assets'); // Shared assets folder
+                                if (uploadedLogo) logoUrl = uploadedLogo;
+                                console.log(`[PR #${number}] Uploaded Logo: ${logoUrl}`);
+                            } else {
+                                console.warn(`[PR #${number}] Logo not found at ${logoPath}`);
+                            }
+                        } catch (logoError) {
+                            console.error(`[PR #${number}] Failed to upload logo:`, logoError);
+                        }
+
+                        // Prefer MP4 for link, WebM fallback
                         const videoLink = mp4Url || webmUrl;
 
                         if (videoLink) {
                             try {
-                                let commentBody = `### <img src="https://ui-avatars.com/api/?name=Aura+Bot&background=0D8ABC&color=fff&rounded=true&bold=true" width="35" /> Walkthrough Video\n\n`;
+                              let commentBody = `### <img src="${logoUrl}" width="35" /> Aura Walkthrough\n\n`;
+                              
+                              // Add Summary
+                              if (analysisResult.summary) {
+                                  commentBody += `**Summary**\n${analysisResult.summary}\n\n`;
+                              }
 
-                                if (gifUrl) {
-                                    // Use the GIF as an image link to the video
-                                    commentBody += `[![Walkthrough Preview](${gifUrl})](${videoLink})\n\n> Click the preview to watch the full video.`;
-                                } else {
-                                    commentBody += `[Watch Video](${videoLink})`;
-                                }
+                              // Add Video
+                              if (gifUrl) {
+                                  commentBody += `[![Walkthrough Preview](${gifUrl})](${videoLink})\n\n> Click the preview to watch the full video.`;
+                              } else {
+                                  commentBody += `[Watch Video](${videoLink})`;
+                              }
 
                                 await postPullRequestComment(installationId, owner, repo, number, commentBody);
                                 console.log(`[PR #${number}] Posted video comment.`);
