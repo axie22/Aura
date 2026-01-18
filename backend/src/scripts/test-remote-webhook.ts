@@ -2,21 +2,23 @@ import { sign } from '@octokit/webhooks-methods';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const PORT = process.env.PORT || 3000;
 const SECRET = process.env.WEBHOOK_SECRET || "";
+// The URL provided by user, BUT corrected to plural /webhooks based on code
+const TARGET_URL = 'https://aura-aolmw.ondigitalocean.app/webhooks';
 
 if (!SECRET) {
     console.error('Error: WEBHOOK_SECRET is not defined in .env');
     process.exit(1);
 }
 
+// Minimal Payload
 const payload = {
     action: 'synchronize',
     pull_request: {
         number: 9,
         title: 'Deployment Fixes w Docker',
         head: { 
-            sha: 'a166237b8837540b1d1c3ff98106174ae89abb76', 
+            sha: 'a166237b8837540b1d1c3ff98106174ae89abb76',
             ref: 'deplyoment'
         },
         base: { sha: '791d36b55c383cf930c4ef8f6977001ee636fd0b' },
@@ -37,10 +39,10 @@ async function sendWebhook() {
     console.log(`Signing payload with secret: ${SECRET.slice(0, 4)}...`);
     const signature = await sign(SECRET, payloadString);
 
-    console.log(`Sending webhook to http://localhost:${PORT}/webhooks...`);
+    console.log(`Sending webhook to ${TARGET_URL}...`);
 
     try {
-        const response = await fetch(`http://localhost:${PORT}/webhooks`, {
+        const response = await fetch(TARGET_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -55,13 +57,12 @@ async function sendWebhook() {
         console.log(`Response Body: ${text}`);
 
         if (response.ok) {
-            console.log('Webhook delivered successfully!');
+            console.log('✅ Webhook delivered successfully!');
         } else {
-            console.error('Webhook failed.');
+            console.error('❌ Webhook failed. Check status code and body above.');
         }
     } catch (error: any) {
-        console.error('Connection failed:', error.message);
-        console.log('Make sure the server is running with "npm run dev"');
+        console.error('❌ Connection failed:', error.message);
     }
 }
 

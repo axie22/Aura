@@ -3,7 +3,7 @@ dist
 .env
 .git
 .gitignore
-Dockerfile
+
 README.md
 documents
 src/**/*.test.ts
