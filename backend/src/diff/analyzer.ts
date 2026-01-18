@@ -1,4 +1,4 @@
-import { getInstallationOctokit } from '../github/client.js';
+import { getInstallationOctokit, postPullRequestComment } from '../github/client.js';
 import { generatePlaywrightPlan } from '../llm/gemini.js';
 
 // Helper: Fetch repo context via GitHub API
@@ -163,6 +163,14 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
         console.log("GENERATED PLAN (TypeScript):");
         console.log(tsOutput);
         console.log("---------------------------------------------------");
+
+        try {
+            const commentBody = `### Aura Generated Playwright Plan\n\n\`\`\`typescript\n${tsOutput}\n\`\`\``;
+            await postPullRequestComment(installationId, owner, repo, pullNumber, commentBody);
+            console.log(`[Analyzer] Posted comment to PR #${pullNumber}`);
+        } catch (error: any) {
+            console.error(`[Analyzer] Failed to post comment: ${error.message}`);
+        }
 
         console.log("---------------------------------------------------");
 
