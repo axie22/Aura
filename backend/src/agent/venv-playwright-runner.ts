@@ -36,7 +36,9 @@ export function buildScriptBody(script: WalkthroughScript): string {
     lines.push("await page.waitForLoadState('networkidle');");
 
     for (const step of script.steps) {
-        if (step.action === 'click' && step.target) {
+        if (step.action === 'goto' && step.target) {
+            lines.push(`await page.goto(${JSON.stringify(step.target)}, { waitUntil: 'networkidle' });`);
+        } else if (step.action === 'click' && step.target) {
             lines.push(`await page.click(${JSON.stringify(step.target)});`);
         } else if (step.action === 'fill' && step.target && step.value !== undefined) {
             lines.push(`await page.fill(${JSON.stringify(step.target)}, ${JSON.stringify(step.value)});`);
