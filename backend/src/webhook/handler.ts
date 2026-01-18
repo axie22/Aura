@@ -1,5 +1,7 @@
 import { Request } from 'express';
 import { analyzeDiff } from '../diff/analyzer.js';
+import { PlaywrightRunner } from '../playwright-runner.js';
+import { WalkthroughScript, buildScriptBody } from '../agent/venv-playwright-runner.js';
 
 export async function handleWebhook(req: Request) {
     const event = req.headers['x-github-event'] as string;
@@ -47,9 +49,9 @@ export async function handleWebhook(req: Request) {
             })();
 
             // Wait for Analysis first
-            const uiFiles = await analysisPromise;
+            const analysisResult = await analysisPromise;
 
-            if (!uiFiles || uiFiles.length === 0) {
+            if (!analysisResult || !analysisResult.uiFiles || analysisResult.uiFiles.length === 0) {
                 console.log(`[PR #${number}] No relevant UI changes. Cancelling VirtualEnv...`);
                 env.cleanup(true); // Kill process & delete dir
                 return;
@@ -61,9 +63,37 @@ export async function handleWebhook(req: Request) {
             try {
                 const localUrl = await envPromise;
                 console.log(`[PR #${number}] Ready for Agent! App running at ${localUrl}`);
-                
-                // TODO: Trigger Phase 3 Agent
-                
+
+                if (!analysisResult.planJson) {
+                    console.warn(`[PR #${number}] No planJson from analyzer. Skipping Playwright run.`);
+                    env.cleanup(true);
+                    return;
+                }
+
+                let walkthroughScript: WalkthroughScript;
+                try {
+                    walkthroughScript = JSON.parse(analysisResult.planJson) as WalkthroughScript;
+                } catch (e) {
+                    console.error(`[PR #${number}] Failed to parse planJson as WalkthroughScript.`, e);
+                    env.cleanup(true);
+                    return;
+                }
+
+                const hasGoto = walkthroughScript.steps.some(step => step.action === 'goto');
+                const route = hasGoto ? '' : (walkthroughScript.entryUrl || '');
+                const scriptBody = buildScriptBody(walkthroughScript);
+
+                const runner = new PlaywrightRunner();
+                const result = await runner.run({
+                    baseUrl: localUrl,
+                    route,
+                    scriptBody,
+                    postScriptWaitMs: 1000,
+                });
+
+                console.log(`[PR #${number}] Playwright run result:`, result);
+
+                env.cleanup(true);
             } catch (e) {
                 console.error(`[PR #${number}] Aborting due to environment failure.`);
                 env.cleanup(true);
