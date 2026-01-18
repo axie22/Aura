@@ -1,27 +1,67 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { spawn, exec } from 'child_process';
+import { spawn, exec, ChildProcess } from 'child_process';
 import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 export class VirtualEnv {
     private basePath: string = '/tmp/aura-agent';
     private workDir: string | null = null;
-    private serverProcess: any = null;
+    private serverProcess: ChildProcess | null = null; // Type updated
+    private currentProc: ChildProcess | null = null; // Track current exec command
+    private aborted: boolean = false;
 
     private projectRoot: string | null = null;
 
     constructor(private prId: string) {}
 
+    /**
+     * Aborts any ongoing operation
+     */
+    abort(): void {
+        this.aborted = true;
+        if (this.currentProc) {
+            try {
+                this.currentProc.kill();
+            } catch (e) {
+                // Ignore
+            }
+        }
+        if (this.serverProcess) {
+            try {
+                this.serverProcess.kill();
+            } catch (e) {
+                // Ignore
+            }
+        }
+    }
+
+    private async execCommand(command: string, options: any = {}, ignoreAbort: boolean = false): Promise<void> {
+        if (this.aborted && !ignoreAbort) throw new Error("Operation aborted");
+
+        return new Promise((resolve, reject) => {
+            this.currentProc = exec(command, options, (error, stdout, stderr) => {
+                this.currentProc = null;
+                if (this.aborted && !ignoreAbort) {
+                    return reject(new Error("Operation aborted"));
+                }
+                if (error) {
+                    return reject(error);
+                }
+                resolve();
+            });
+        });
+    }
 
     async initialize(): Promise<string> {
+        if (this.aborted) throw new Error("Operation aborted");
         this.workDir = path.join(this.basePath, this.prId);
         
         try {
             // Clean up existing if present forcefully
             // Using rm -rf via shell is more robust than fs.rm for deep node_modules
-            await execAsync(`rm -rf "${this.workDir}"`);
+            await this.execCommand(`rm -rf "${this.workDir}"`);
+            
+            if (this.aborted) throw new Error("Operation aborted");
             await fs.mkdir(this.workDir, { recursive: true });
         } catch (error: any) {
             throw new Error(`Failed to initialize workspace: ${error.message}`);
@@ -30,17 +70,16 @@ export class VirtualEnv {
         return this.workDir;
     }
 
-
-
     /**
      * Shallow clones the repository branch
      */
     async cloneRepo(repoUrl: string, branch: string): Promise<void> {
         if (!this.workDir) throw new Error("VirtualEnv not initialized");
+        if (this.aborted) throw new Error("Operation aborted");
         
         console.log(`Cloning ${repoUrl} (branch: ${branch}) into ${this.workDir}...`);
         try {
-            await execAsync(`git clone --depth 1 --branch ${branch} ${repoUrl} .`, { cwd: this.workDir });
+            await this.execCommand(`git clone --depth 1 --branch ${branch} ${repoUrl} .`, { cwd: this.workDir });
         } catch (error: any) {
             throw new Error(`Git clone failed: ${error.message}`);
         }
@@ -53,6 +92,7 @@ export class VirtualEnv {
      */
     private async detectProjectRoot(): Promise<void> {
         if (!this.workDir) return;
+        if (this.aborted) throw new Error("Operation aborted");
         
         const rootPkg = path.join(this.workDir, 'package.json');
         try {
@@ -70,6 +110,7 @@ export class VirtualEnv {
         const dirs = entries.filter(dirent => dirent.isDirectory());
 
         for (const dir of dirs) {
+            if (this.aborted) throw new Error("Operation aborted");
             const subPkg = path.join(this.workDir, dir.name, 'package.json');
             try {
                 await fs.access(subPkg);
@@ -90,15 +131,16 @@ export class VirtualEnv {
      */
     async installDependencies(): Promise<void> {
         if (!this.projectRoot) throw new Error("Project root not detected");
+        if (this.aborted) throw new Error("Operation aborted");
         
         console.log(`Installing dependencies in ${this.projectRoot}...`);
         try {
             try {
                 await fs.access(path.join(this.projectRoot, 'package-lock.json'));
-                await execAsync('npm ci', { cwd: this.projectRoot });
+                await this.execCommand('npm ci', { cwd: this.projectRoot });
             } catch {
                 console.warn("No package-lock.json found. Falling back to npm install.");
-                await execAsync('npm install', { cwd: this.projectRoot });
+                await this.execCommand('npm install', { cwd: this.projectRoot });
             }
         } catch (error: any) {
             throw new Error(`npm install failed: ${error.message}`);
@@ -111,6 +153,7 @@ export class VirtualEnv {
      */
     async startServer(buildCommand: string = 'npm run build', startCommand: string = 'npm start', port: number = 3000): Promise<string> {
         if (!this.projectRoot) throw new Error("Project root not detected");
+        if (this.aborted) throw new Error("Operation aborted");
 
         if (buildCommand) {
             try {
@@ -120,7 +163,7 @@ export class VirtualEnv {
                 
                 if (pkgJson.scripts && pkgJson.scripts[scriptName]) {
                     console.log(`Running build: ${buildCommand}...`);
-                    await execAsync(buildCommand, { cwd: this.projectRoot });
+                    await this.execCommand(buildCommand, { cwd: this.projectRoot });
                 } else {
                     console.log(`Skipping build: script "${scriptName}" not found in package.json`);
                 }
@@ -129,6 +172,8 @@ export class VirtualEnv {
             }
         }
         
+        if (this.aborted) throw new Error("Operation aborted");
+
         let finalStartCommand = startCommand;
         try {
             const pkgJsonPath = path.join(this.projectRoot, 'package.json');
@@ -172,6 +217,11 @@ export class VirtualEnv {
         const timeoutMs = 90000;
 
         while (Date.now() - startTime < timeoutMs) {
+            if (this.aborted) {
+                this.cleanup();
+                throw new Error("Operation aborted");
+            }
+
             try {
                 const res = await fetch(url);
                 if (res.ok) {
@@ -195,7 +245,7 @@ export class VirtualEnv {
             console.log('Stopping server process...');
             try {
                 // Check if pid exists before killing
-                process.kill(-this.serverProcess.pid); 
+                if (this.serverProcess.pid) process.kill(-this.serverProcess.pid); 
             } catch (e) {
                 // Process might be already gone
             }
@@ -205,7 +255,8 @@ export class VirtualEnv {
         if (deleteWorkspace && this.workDir) {
            try {
                // Use rm -rf for robustness
-               await execAsync(`rm -rf "${this.workDir}"`);
+               // Pass true to ignore aborted state because we still want to clean up
+               await this.execCommand(`rm -rf "${this.workDir}"`, {}, true);
            } catch (e) {
                console.error(`Failed to delete workspace ${this.workDir}:`, e);
            }
