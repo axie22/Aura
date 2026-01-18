@@ -32,6 +32,22 @@ export interface VenvRunResult {
     error?: string;
 }
 
+function toLocator(target: string): string {
+    const t = target.trim();
+    // Check for common locator methods
+    const methods = ['getByRole', 'getByText', 'getByLabel', 'getByPlaceholder', 'getByAltText', 'getByTitle', 'getByTestId', 'locator'];
+    for (const method of methods) {
+        if (t.startsWith(method + '(')) {
+            return `page.${t}`;
+        }
+    }
+    // Also allow explicit page. calls
+    if (t.startsWith('page.')) return t;
+    
+    // Default to wrapping in locator()
+    return `page.locator(${JSON.stringify(t)})`;
+}
+
 export function buildScriptBody(script: WalkthroughScript): string {
     const lines: string[] = [];
     lines.push("await page.waitForLoadState('domcontentloaded');");
@@ -40,10 +56,10 @@ export function buildScriptBody(script: WalkthroughScript): string {
 
     if (script.highlightSelectors && script.highlightSelectors.length > 0) {
         for (const sel of script.highlightSelectors) {
-            const target = JSON.stringify(sel);
+            const locatorCode = toLocator(sel);
             lines.push(
                 `{` +
-                `const locator = page.locator(${target});` +
+                `const locator = ${locatorCode};` +
                 `await locator.first().evaluate(el => {` +
                 `(el as HTMLElement).style.outline = '0.2em solid red';` +
                 `});` +
@@ -57,20 +73,20 @@ export function buildScriptBody(script: WalkthroughScript): string {
             lines.push(`await page.goto(${JSON.stringify(step.target)}, { waitUntil: 'domcontentloaded' });`);
             lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
         } else if (step.action === 'click' && step.target) {
-            lines.push(`await page.click(${JSON.stringify(step.target)});`);
+            lines.push(`await ${toLocator(step.target)}.click();`);
         } else if (step.action === 'fill' && step.target && step.value !== undefined) {
-            lines.push(`await page.fill(${JSON.stringify(step.target)}, ${JSON.stringify(step.value)});`);
+            lines.push(`await ${toLocator(step.target)}.fill(${JSON.stringify(step.value)});`);
         } else if (step.action === 'wait') {
             const ms = parseInt(step.value || '1000', 10);
             const timeout = Number.isFinite(ms) ? ms : 1000;
             lines.push(`await page.waitForTimeout(${timeout});`);
         } else if (step.action === 'assertText' && step.target && step.value !== undefined) {
-            const target = JSON.stringify(step.target);
+            const locatorCode = toLocator(step.target);
             const expected = JSON.stringify(step.value);
             const desc = JSON.stringify(step.description);
             lines.push(
                 `{` +
-                `const locator = page.locator(${target});` +
+                `const locator = ${locatorCode};` +
                 `await locator.waitFor();` +
                 `const text = await locator.textContent();` +
                 `if (!text || !text.includes(${expected})) {` +
