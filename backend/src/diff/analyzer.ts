@@ -107,7 +107,6 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
         console.log(`Fetching remote repo context from branch: ${branch}`);
         const repoContext = await fetchRepoContext(octokit, owner, repo, branch);
 
-        // 3. Define System Prompt
         const systemPrompt = `
             You are a Senior Frontend QA Engineer writing Playwright walkthrough plans.
 
@@ -121,10 +120,11 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
             entryUrl: string;
             steps: {
                 description: string;
-                action: 'goto' | 'click' | 'fill'  | 'wait';
-                target?: string; // selector or url
-                value?: string; // value to fill
+                action: 'goto' | 'click' | 'fill' | 'wait';
+                target?: string;
+                value?: string;
             }[];
+            highlightSelectors?: string[];
             }
 
             Example Output:
@@ -136,12 +136,17 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
                 { "description": "Fill email", "action": "fill", "target": "input[name='email']", "value": "test@example.com" },
                 { "description": "Click submit", "action": "click", "target": "button[type='submit']" },
                 { "description": "Wait for navigation", "action": "wait" }
+            ],
+            "highlightSelectors": [
+                "button[type='submit']",
+                "input[name='email']"
             ]
             }
 
             Guidelines:
             - Prefer stable selectors: getByRole(), getByLabel(), and data-testid if available.
-            - Focus ONLY on flows likely impacted by the changed files.
+            - Focus ONLY on flows and elements likely impacted by the changed files.
+            - Use highlightSelectors to list 1-5 selectors for elements most directly changed by the diff.
             - STRICTLY FORBIDDEN: Do not use 'assertText' or any verification steps. The agent should only interact with the UI.
             - Use 'wait' if necessary to ensure elements are loaded, but prefer auto-waiting selectors.
             `;

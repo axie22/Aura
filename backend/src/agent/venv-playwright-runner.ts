@@ -14,6 +14,7 @@ export interface WalkthroughScript {
     name: string;
     entryUrl: string;
     steps: WalkthroughStep[];
+    highlightSelectors?: string[];
 }
 
 export interface VenvRunOptions {
@@ -34,6 +35,20 @@ export interface VenvRunResult {
 export function buildScriptBody(script: WalkthroughScript): string {
     const lines: string[] = [];
     lines.push("await page.waitForLoadState('networkidle');");
+
+    if (script.highlightSelectors && script.highlightSelectors.length > 0) {
+        for (const sel of script.highlightSelectors) {
+            const target = JSON.stringify(sel);
+            lines.push(
+                `{` +
+                `const locator = page.locator(${target});` +
+                `await locator.first().evaluate(el => {` +
+                `(el as HTMLElement).style.outline = '0.2em solid red';` +
+                `});` +
+                `}`
+            );
+        }
+    }
 
     for (const step of script.steps) {
         if (step.action === 'goto' && step.target) {
