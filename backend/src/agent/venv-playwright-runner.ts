@@ -30,42 +30,28 @@ export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): st
     lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
 
     if (script.highlightSelectors && script.highlightSelectors.length > 0) {
-        const selectorsJson = JSON.stringify(script.highlightSelectors);
-        const browserLogic = `(selectors) => {
-            const runHighlight = () => {
-                selectors.forEach(sel => {
-                    try {
-                        const elements = document.querySelectorAll(sel);
-                        elements.forEach(el => {
-                            if (el instanceof HTMLElement) {
-                                el.style.outline = '0.2em solid red';
-                                el.setAttribute('data-aura-highlighted', 'true');
-                            }
-                        });
-                    } catch (e) {}
-                });
-            };
+        // Generate CSS rules for all selectors
+        // We use !important to ensure visibility over existing styles
+        const cssRules = script.highlightSelectors.map(selector => 
+            `${selector} { 
+                outline: 2px solid red !important; 
+                box-shadow: 0 0 10px rgba(255, 0, 0, 0.5) !important;
+                position: relative !important;
+                z-index: 2147483647 !important;
+            }`
+        ).join('\n');
 
-            runHighlight();
+        const cssJson = JSON.stringify(cssRules);
 
-            const observer = new MutationObserver(() => {
-                runHighlight();
-            });
-
-            if (document.body) {
-                observer.observe(document.body, { childList: true, subtree: true });
-            } else {
-                window.addEventListener('DOMContentLoaded', () => {
-                    runHighlight();
-                    if (document.body) {
-                        observer.observe(document.body, { childList: true, subtree: true });
-                    }
-                });
-            }
-        }`;
-
-        lines.push(`await page.addInitScript(${browserLogic}, ${selectorsJson});`);
-        lines.push(`await page.evaluate(${browserLogic}, ${selectorsJson});`);
+        // 1. Inject into current page immediately
+        lines.push(`await page.addStyleTag({ content: ${cssJson} });`);
+        
+        // 2. Persist across navigations
+        lines.push(`await page.addInitScript((css) => {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+        }, ${cssJson});`);
     }
 
     // Append the raw script body from the LLM
