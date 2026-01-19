@@ -26,46 +26,32 @@ export interface VenvRunResult {
 export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): string {
     const lines: string[] = [];
     lines.push("await page.waitForLoadState('domcontentloaded');");
-    // Soft wait for network idle
     lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
 
     if (script.highlightSelectors && script.highlightSelectors.length > 0) {
         const selectorsJson = JSON.stringify(script.highlightSelectors);
-        const browserLogic = `(selectors) => {
-            const runHighlight = () => {
-                selectors.forEach(sel => {
-                    try {
-                        const elements = document.querySelectorAll(sel);
-                        elements.forEach(el => {
-                            if (el instanceof HTMLElement) {
-                                el.style.outline = '0.2em solid red';
-                                el.setAttribute('data-aura-highlighted', 'true');
-                            }
-                        });
-                    } catch (e) {}
-                });
-            };
-
-            runHighlight();
-
-            const observer = new MutationObserver(() => {
-                runHighlight();
-            });
-
-            if (document.body) {
-                observer.observe(document.body, { childList: true, subtree: true });
-            } else {
-                window.addEventListener('DOMContentLoaded', () => {
-                    runHighlight();
-                    if (document.body) {
-                        observer.observe(document.body, { childList: true, subtree: true });
-                    }
-                });
-            }
-        }`;
-
-        lines.push(`await page.addInitScript(${browserLogic}, ${selectorsJson});`);
-        lines.push(`await page.evaluate(${browserLogic}, ${selectorsJson});`);
+        lines.push(`const __auraHighlightSelectors = ${selectorsJson};`);
+        lines.push(`async function __auraApplyHighlights(page) {`);
+        lines.push(`  for (const sel of __auraHighlightSelectors) {`);
+        lines.push(`    const locator = page.locator(sel);`);
+        lines.push(`    const elements = await locator.elementHandles();`);
+        lines.push(`    for (const el of elements) {`);
+        lines.push(`      await el.evaluate(node => {`);
+        lines.push(`        if (node instanceof HTMLElement) {`);
+        lines.push(`          node.style.outline = '0.2em solid red';`);
+        lines.push(`          node.setAttribute('data-aura-highlighted', 'true');`);
+        lines.push(`        }`);
+        lines.push(`      });`);
+        lines.push(`    }`);
+        lines.push(`  }`);
+        lines.push(`}`);
+        lines.push(`const __auraOriginalGoto = page.goto.bind(page);`);
+        lines.push(`page.goto = async (...args) => {`);
+        lines.push(`  const result = await __auraOriginalGoto(...args);`);
+        lines.push(`  await __auraApplyHighlights(page);`);
+        lines.push(`  return result;`);
+        lines.push(`};`);
+        lines.push(`await __auraApplyHighlights(page);`);
     }
 
     // Append the raw script body from the LLM

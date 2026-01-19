@@ -2,15 +2,17 @@
 import { buildScriptBody, WalkthroughScript } from '../agent/venv-playwright-runner.js';
 import { PlaywrightRunner } from '../playwright-runner.js';
 
-// 1. Simulate the User's "TS Plan" (as a parsed object)
 const userExamplePlan: WalkthroughScript = {
-    name: "Navigate to About Page",
-    entryUrl: "https://example.com", // Use a real public URL for testing
+    name: "Example Domain highlight test",
+    entryUrl: "https://example.com",
     scriptBody: `
         await page.goto("https://example.com");
-        await page.locator("a").click();
-        await page.waitForTimeout(2000);
-    `
+        await page.waitForTimeout(500);
+    `,
+    highlightSelectors: [
+        "h1",
+        "text=Example Domain"
+    ]
 };
 
 async function verifyPlanExecution() {
