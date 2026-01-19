@@ -137,8 +137,9 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
               - PREFER locator methods like page.getByRole(), page.getByText() for INTERACTION.
               - You MAY use await page.locator(...).waitFor() or await page.waitForURL(...) for flow control. DO NOT use expect(...) assertions.
             - highlightSelectors:
-              - MUST BE valid CSS selectors (e.g. '.btn', '#submit', '[data-testid="foo"]').
-              - DO NOT use Playwright locators like 'getByRole' here. The highlighting script uses document.querySelectorAll().
+              - MUST BE valid CSS selectors (e.g. '.btn-primary', '#submit', 'h1', 'nav > a').
+              - AVOID fragile selectors like specific styles or generated classes (e.g. 'div[style*="width: 100px"]').
+              - DO NOT use Playwright locators like 'getByRole' here.
               - Select 1-5 elements most relevant to the changes.
             `;
 
