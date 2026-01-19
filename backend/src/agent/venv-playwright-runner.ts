@@ -41,22 +41,11 @@ export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): st
         lines.push(`          node.style.outline = '0.2em solid red';`);
         lines.push(`          node.setAttribute('data-aura-highlighted', 'true');`);
         lines.push(`        }`);
-        lines.push(`      });`);
-        lines.push(`    }`);
-        lines.push(`  }`);
-        lines.push(`}`);
-        lines.push(`const __auraOriginalGoto = page.goto.bind(page);`);
-        lines.push(`page.goto = async (...args) => {`);
-        lines.push(`  const result = await __auraOriginalGoto(...args);`);
-        lines.push(`  await __auraApplyHighlights(page);`);
-        lines.push(`  return result;`);
-        lines.push(`};`);
-        lines.push(`await __auraApplyHighlights(page);`);
         // Generate CSS rules for all selectors
         // We use !important to ensure visibility over existing styles
         const cssRules = script.highlightSelectors.map(selector =>
-            `${selector} { 
-                outline: 2px solid red !important; 
+            `${selector} {
+                outline: 2px solid red !important;
                 box-shadow: 0 0 10px rgba(255, 0, 0, 0.5) !important;
                 position: relative !important;
                 z-index: 2147483647 !important;
@@ -75,6 +64,10 @@ export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): st
             document.head.appendChild(style);
         }, ${cssJson});`);
     }
+
+    lines.push("await page.waitForLoadState('domcontentloaded');");
+    // Soft wait for network idle
+    lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
 
     // Append the raw script body from the LLM
     // We assume the LLM generates valid Playwright code that uses 'page'
@@ -103,6 +96,7 @@ export async function runInVirtualEnv(options: VenvRunOptions): Promise<VenvRunR
             baseUrl,
             route,
             scriptBody,
+            postScriptWaitMs: 5000,
         });
 
         return {
