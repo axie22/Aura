@@ -6,23 +6,11 @@ import { PlaywrightRunner } from '../playwright-runner.js';
 const userExamplePlan: WalkthroughScript = {
     name: "Navigate to About Page",
     entryUrl: "https://example.com", // Use a real public URL for testing
-    steps: [
-        {
-            description: "Navigate to the home page",
-            action: "goto",
-            target: "https://example.com"
-        },
-        {
-            description: "Click the 'More information' link",
-            action: "click",
-            target: "a" // Simple CSS selector for the link
-        },
-        {
-            description: "Wait for navigation",
-            action: "wait",
-            value: "2000"
-        }
-    ]
+    scriptBody: `
+        await page.goto("https://example.com");
+        await page.locator("a").click();
+        await page.waitForTimeout(2000);
+    `
 };
 
 async function verifyPlanExecution() {
