@@ -26,13 +26,35 @@ export interface VenvRunResult {
 export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): string {
     const lines: string[] = [];
     lines.push("await page.waitForLoadState('domcontentloaded');");
-    // Soft wait for network idle
     lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
 
     if (script.highlightSelectors && script.highlightSelectors.length > 0) {
+        const selectorsJson = JSON.stringify(script.highlightSelectors);
+        lines.push(`const __auraHighlightSelectors = ${selectorsJson};`);
+        lines.push(`async function __auraApplyHighlights(page) {`);
+        lines.push(`  for (const sel of __auraHighlightSelectors) {`);
+        lines.push(`    const locator = page.locator(sel);`);
+        lines.push(`    const elements = await locator.elementHandles();`);
+        lines.push(`    for (const el of elements) {`);
+        lines.push(`      await el.evaluate(node => {`);
+        lines.push(`        if (node instanceof HTMLElement) {`);
+        lines.push(`          node.style.outline = '0.2em solid red';`);
+        lines.push(`          node.setAttribute('data-aura-highlighted', 'true');`);
+        lines.push(`        }`);
+        lines.push(`      });`);
+        lines.push(`    }`);
+        lines.push(`  }`);
+        lines.push(`}`);
+        lines.push(`const __auraOriginalGoto = page.goto.bind(page);`);
+        lines.push(`page.goto = async (...args) => {`);
+        lines.push(`  const result = await __auraOriginalGoto(...args);`);
+        lines.push(`  await __auraApplyHighlights(page);`);
+        lines.push(`  return result;`);
+        lines.push(`};`);
+        lines.push(`await __auraApplyHighlights(page);`);
         // Generate CSS rules for all selectors
         // We use !important to ensure visibility over existing styles
-        const cssRules = script.highlightSelectors.map(selector => 
+        const cssRules = script.highlightSelectors.map(selector =>
             `${selector} { 
                 outline: 2px solid red !important; 
                 box-shadow: 0 0 10px rgba(255, 0, 0, 0.5) !important;
@@ -45,7 +67,7 @@ export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): st
 
         // 1. Inject into current page immediately
         lines.push(`await page.addStyleTag({ content: ${cssJson} });`);
-        
+
         // 2. Persist across navigations
         lines.push(`await page.addInitScript((css) => {
             const style = document.createElement('style');
