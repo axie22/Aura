@@ -7,13 +7,9 @@ async function main() {
     const script: WalkthroughScript = {
         name: 'Dummy Wait Script',
         entryUrl: '/',
-        steps: [
-            {
-                description: 'Wait for page to settle',
-                action: 'wait',
-                value: '2000',
-            },
-        ],
+        scriptBody: `
+            await page.waitForTimeout(2000);
+        `
     };
 
     const prId = 'venv-playwright-test-' + Date.now();
