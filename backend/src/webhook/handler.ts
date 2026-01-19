@@ -139,7 +139,7 @@ export async function handleWebhook(req: Request) {
                 
                 const hasGoto = walkthroughScript.steps.some(step => step.action === 'goto');
                 const route = hasGoto ? '' : (walkthroughScript.entryUrl || '');
-                const scriptBody = buildScriptBody(walkthroughScript);
+                const scriptBody = buildScriptBody(walkthroughScript, localUrl);
 
                 const runner = new PlaywrightRunner();
                 const result = await runner.run({
