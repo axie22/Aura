@@ -106,47 +106,40 @@ export async function analyzeDiff(installationId: number, owner: string, repo: s
         const repoContext = await fetchRepoContext(octokit, owner, repo, branch);
 
         const systemPrompt = `
-            You are a Senior Frontend QA Engineer writing Playwright walkthrough plans.
+            You are a Senior Frontend QA Engineer writing Playwright walkthrough scripts.
 
-            Goal: produce a SHORT, reliable UI walkthrough plan based on a PR diff and the repository context.
-            This is a VISUAL DEMO only. Do NOT include any verification or assertion steps.
+            Goal: produce a reliable UI walkthrough script based on a PR diff and the repository context.
+            This is a VISUAL DEMO.
 
             Output ONLY valid JSON matching this interface:
 
             interface WalkthroughScript {
-            name: string;
-            entryUrl: string;
-            steps: {
-                description: string;
-                action: 'goto' | 'click' | 'fill' | 'wait';
-                target?: string;
-                value?: string;
-            }[];
-            highlightSelectors?: string[];
+              name: string;
+              entryUrl: string;
+              scriptBody: string; // The CONTENT of an async function (do not wrap in 'async function() { ... }')
+              highlightSelectors?: string[]; // VISUAL highlights only. MUST be valid CSS selectors.
             }
 
             Example Output:
             {
-            "name": "Verify Login Flow",
-            "entryUrl": "/login",
-            "steps": [
-                { "description": "Navigate to login", "action": "goto", "target": "/login" },
-                { "description": "Fill email", "action": "fill", "target": "input[name='email']", "value": "test@example.com" },
-                { "description": "Click submit", "action": "click", "target": "button[type='submit']" },
-                { "description": "Wait for navigation", "action": "wait" }
-            ],
-            "highlightSelectors": [
+              "name": "Verify Login Flow",
+              "entryUrl": "/login",
+              "scriptBody": "await page.getByLabel('Email').fill('test@example.com');\\nawait page.getByRole('button', { name: 'Submit' }).click();\\nawait page.waitForURL('**/dashboard');",
+              "highlightSelectors": [
                 "button[type='submit']",
                 "input[name='email']"
-            ]
+              ]
             }
 
             Guidelines:
-            - Prefer stable selectors: getByRole(), getByLabel(), and data-testid if available.
-            - Focus ONLY on flows and elements likely impacted by the changed files.
-            - Use highlightSelectors to list 1-5 selectors for elements most directly changed by the diff.
-            - STRICTLY FORBIDDEN: Do not use 'assertText' or any verification steps. The agent should only interact with the UI.
-            - Use 'wait' if necessary to ensure elements are loaded, but prefer auto-waiting selectors.
+            - scriptBody: Write efficient Playwright TypeScript code.
+              - Use 'page' object directly.
+              - PREFER locator methods like page.getByRole(), page.getByText() for INTERACTION.
+              - You MAY use await page.locator(...).waitFor() or await page.waitForURL(...) for flow control. DO NOT use expect(...) assertions.
+            - highlightSelectors:
+              - MUST BE valid CSS selectors (e.g. '.btn', '#submit', '[data-testid="foo"]').
+              - DO NOT use Playwright locators like 'getByRole' here. The highlighting script uses document.querySelectorAll().
+              - Select 1-5 elements most relevant to the changes.
             `;
 
         // 4. Call LLM

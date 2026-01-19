@@ -137,7 +137,7 @@ export async function handleWebhook(req: Request) {
                     return;
                 }
                 
-                const hasGoto = walkthroughScript.steps.some(step => step.action === 'goto');
+                const hasGoto = walkthroughScript.scriptBody.includes('page.goto(');
                 const route = hasGoto ? '' : (walkthroughScript.entryUrl || '');
                 const scriptBody = buildScriptBody(walkthroughScript, localUrl);
 

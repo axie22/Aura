@@ -1,19 +1,10 @@
 import { VirtualEnv } from '../virtual-env/manager.js';
 import { PlaywrightRunner } from '../playwright-runner.js';
 
-export type WalkthroughAction = 'goto' | 'click' | 'fill' | 'assertText' | 'wait';
-
-export interface WalkthroughStep {
-    description: string;
-    action: WalkthroughAction;
-    target?: string;
-    value?: string;
-}
-
 export interface WalkthroughScript {
     name: string;
     entryUrl: string;
-    steps: WalkthroughStep[];
+    scriptBody: string;
     highlightSelectors?: string[];
 }
 
@@ -30,41 +21,6 @@ export interface VenvRunResult {
     success: boolean;
     videoPath?: string;
     error?: string;
-}
-
-function toLocator(target: string): string {
-    const t = target.trim();
-    // Check for common locator methods
-    const methods = ['getByRole', 'getByText', 'getByLabel', 'getByPlaceholder', 'getByAltText', 'getByTitle', 'getByTestId', 'locator'];
-    for (const method of methods) {
-        if (t.startsWith(method + '(')) {
-            return `page.${t}`;
-        }
-    }
-    // Also allow explicit page. calls
-    if (t.startsWith('page.')) return t;
-
-    // Default to wrapping in locator()
-    return `page.locator(${JSON.stringify(t)})`;
-}
-
-function resolveGotoTarget(target: string, baseUrl?: string): string {
-    const trimmed = target.trim();
-
-    if (/^https?:\/\//i.test(trimmed)) {
-        return trimmed;
-    }
-
-    if (baseUrl) {
-        try {
-            const url = new URL(trimmed, baseUrl);
-            return url.toString();
-        } catch {
-            return trimmed;
-        }
-    }
-
-    return trimmed;
 }
 
 export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): string {
@@ -112,35 +68,10 @@ export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): st
         lines.push(`await page.evaluate(${browserLogic}, ${selectorsJson});`);
     }
 
-    for (const step of script.steps) {
-        if (step.action === 'goto' && step.target) {
-            const resolved = resolveGotoTarget(step.target, baseUrl);
-            lines.push(`await page.goto(${JSON.stringify(resolved)}, { waitUntil: 'domcontentloaded' });`);
-            lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
-        } else if (step.action === 'click' && step.target) {
-            lines.push(`await ${toLocator(step.target)}.click();`);
-        } else if (step.action === 'fill' && step.target && step.value !== undefined) {
-            lines.push(`await ${toLocator(step.target)}.fill(${JSON.stringify(step.value)});`);
-        } else if (step.action === 'wait') {
-            const ms = parseInt(step.value || '1000', 10);
-            const timeout = Number.isFinite(ms) ? ms : 1000;
-            lines.push(`await page.waitForTimeout(${timeout});`);
-        } else if (step.action === 'assertText' && step.target && step.value !== undefined) {
-            const locatorCode = toLocator(step.target);
-            const expected = JSON.stringify(step.value);
-            const desc = JSON.stringify(step.description);
-            lines.push(
-                `{` +
-                `const locator = ${locatorCode};` +
-                `await locator.waitFor();` +
-                `const text = await locator.textContent();` +
-                `if (!text || !text.includes(${expected})) {` +
-                `throw new Error('Assertion failed for step: ' + ${desc});` +
-                `}` +
-                `}`
-            );
-        }
-    }
+    // Append the raw script body from the LLM
+    // We assume the LLM generates valid Playwright code that uses 'page'
+    lines.push("// --- Generated Script Body ---");
+    lines.push(script.scriptBody);
 
     return lines.join('\n');
 }
@@ -156,7 +87,7 @@ export async function runInVirtualEnv(options: VenvRunOptions): Promise<VenvRunR
         await env.installDependencies();
         const baseUrl = await env.startServer('npm run build', 'npm start', port);
 
-        const hasGoto = options.script.steps.some(step => step.action === 'goto');
+        const hasGoto = options.script.scriptBody.includes('page.goto(');
         const route = hasGoto ? '' : options.script.entryUrl || '';
         const scriptBody = buildScriptBody(options.script, baseUrl);
 

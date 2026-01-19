@@ -4,16 +4,13 @@ function testBuilder() {
     const script: WalkthroughScript = {
         name: 'Test Script',
         entryUrl: '/',
+        scriptBody: `
+            await page.getByRole('button', { name: 'Login' }).click();
+            await page.fill('#email', 'user@example.com');
+        `,
         highlightSelectors: [
-            '.css-selector',
-            "getByRole('button', { name: 'Submit' })",
-            "page.getByText('Hello')"
-        ],
-        steps: [
-            { description: 'Click CSS', action: 'click', target: '#id' },
-            { description: 'Click Role', action: 'click', target: "getByRole('link')" },
-            { description: 'Fill Input', action: 'fill', target: "getByPlaceholder('Name')", value: 'John' },
-            { description: 'Assert Text', action: 'assertText', target: '.status', value: 'Active' }
+            '.main-button',
+            '#header-logo'
         ]
     };
 
@@ -24,16 +21,29 @@ function testBuilder() {
     console.log(body);
     console.log('\n----------------------\n');
 
-    // Basic assertions
-    if (!body.includes("page.locator(\".css-selector\")")) console.error("FAIL: Missing CSS selector highlight");
-    if (!body.includes("page.getByRole('button', { name: 'Submit' })")) console.error("FAIL: Missing getByRole highlight");
-    if (!body.includes("page.getByText('Hello')")) console.error("FAIL: Missing page.getByText highlight");
+    // Verification Logic
+    const failures: string[] = [];
+
+    // 1. Check for Highlights (converted to browser logic)
+    if (!body.includes('document.querySelectorAll')) failures.push("Missing highlight logic (document.querySelectorAll)");
+    if (!body.includes('.main-button')) failures.push("Missing highlight selector .main-button");
+    if (!body.includes('#header-logo')) failures.push("Missing highlight selector #header-logo");
+
+    // 2. Check for Script Body Injection
+    if (!body.includes("// --- Generated Script Body ---")) failures.push("Missing script body marker");
+    if (!body.includes("await page.getByRole('button', { name: 'Login' }).click();")) failures.push("Missing raw script content: getByRole");
+    if (!body.includes("await page.fill('#email', 'user@example.com');")) failures.push("Missing raw script content: page.fill");
+
+    // 3. Check for Base Waits
+    if (!body.includes("await page.waitForLoadState('domcontentloaded');")) failures.push("Missing base wait: domcontentloaded");
     
-    if (!body.includes("await page.locator(\"#id\").click()")) console.error("FAIL: Missing CSS click");
-    if (!body.includes("await page.getByRole('link').click()")) console.error("FAIL: Missing getByRole click");
-    if (!body.includes("await page.getByPlaceholder('Name').fill(\"John\")")) console.error("FAIL: Missing fill");
-    
-    console.log('Verification complete.');
+    if (failures.length > 0) {
+        console.error("❌ verification FAILED:");
+        failures.forEach(f => console.error(`  - ${f}`));
+        process.exit(1);
+    } else {
+        console.log("✅ Verification SUCCESS: Script builder correctly injects highlights and raw script.");
+    }
 }
 
 testBuilder();
