@@ -5,7 +5,7 @@ export type WalkthroughAction = 'goto' | 'click' | 'fill' | 'assertText' | 'wait
 
 export interface WalkthroughStep {
     description: string;
-    action: WalkthroughAction;  
+    action: WalkthroughAction;
     target?: string;
     value?: string;
 }
@@ -43,7 +43,7 @@ function toLocator(target: string): string {
     }
     // Also allow explicit page. calls
     if (t.startsWith('page.')) return t;
-    
+
     // Default to wrapping in locator()
     return `page.locator(${JSON.stringify(t)})`;
 }
