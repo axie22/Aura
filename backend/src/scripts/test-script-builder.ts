@@ -24,10 +24,10 @@ function testBuilder() {
     // Verification Logic
     const failures: string[] = [];
 
-    // 1. Check for Highlights (converted to browser logic)
-    if (!body.includes('document.querySelectorAll')) failures.push("Missing highlight logic (document.querySelectorAll)");
-    if (!body.includes('.main-button')) failures.push("Missing highlight selector .main-button");
-    if (!body.includes('#header-logo')) failures.push("Missing highlight selector #header-logo");
+    // 1. Check for Highlights (CSS Injection)
+    if (!body.includes('page.addStyleTag')) failures.push("Missing highlight logic (page.addStyleTag)");
+    if (!body.includes('page.addInitScript')) failures.push("Missing highlight logic (page.addInitScript)");
+    if (!body.includes('.main-button { \n                outline: 2px solid red !important;')) failures.push("Missing highlight CSS rule for .main-button");
 
     // 2. Check for Script Body Injection
     if (!body.includes("// --- Generated Script Body ---")) failures.push("Missing script body marker");
