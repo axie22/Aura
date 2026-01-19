@@ -32,6 +32,7 @@ export class PlaywrightRunner {
 
         const context: BrowserContext = await browser.newContext({
             viewport: job.viewport ?? { width: 1280, height: 720 },
+            baseURL: job.baseUrl,
             recordVideo: {
                 dir: videoDir,
                 size: job.viewport ?? { width: 1280, height: 720 },
