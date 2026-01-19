@@ -32,67 +32,61 @@ export interface VenvRunResult {
     error?: string;
 }
 
+function toLocator(target: string): string {
+    const t = target.trim();
+    // Check for common locator methods
+    const methods = ['getByRole', 'getByText', 'getByLabel', 'getByPlaceholder', 'getByAltText', 'getByTitle', 'getByTestId', 'locator'];
+    for (const method of methods) {
+        if (t.startsWith(method + '(')) {
+            return `page.${t}`;
+        }
+    }
+    // Also allow explicit page. calls
+    if (t.startsWith('page.')) return t;
+
+    // Default to wrapping in locator()
+    return `page.locator(${JSON.stringify(t)})`;
+}
+
 export function buildScriptBody(script: WalkthroughScript): string {
     const lines: string[] = [];
-    lines.push("await page.waitForLoadState('load');");
+    lines.push("await page.waitForLoadState('domcontentloaded');");
+    // Soft wait for network idle
+    lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
 
     if (script.highlightSelectors && script.highlightSelectors.length > 0) {
-        const selectorsJson = JSON.stringify(script.highlightSelectors);
-        const browserLogic = `(selectors) => {
-            const runHighlight = () => {
-                selectors.forEach(sel => {
-                    try {
-                        const elements = document.querySelectorAll(sel);
-                        elements.forEach(el => {
-                            if (el instanceof HTMLElement) {
-                                el.style.outline = '0.2em solid red';
-                                el.setAttribute('data-aura-highlighted', 'true');
-                            }
-                        });
-                    } catch (e) { }
-                });
-            };
-
-            runHighlight();
-
-            const observer = new MutationObserver(() => {
-                runHighlight();
-            });
-            
-            if (document.body) {
-                observer.observe(document.body, { childList: true, subtree: true });
-            } else {
-                window.addEventListener('DOMContentLoaded', () => {
-                     runHighlight();
-                     if (document.body) {
-                        observer.observe(document.body, { childList: true, subtree: true });
-                     }
-                });
-            }
-        }`;
-
-        lines.push(`await page.addInitScript(${browserLogic}, ${selectorsJson});`);
-        lines.push(`await page.evaluate(${browserLogic}, ${selectorsJson});`);
+        for (const sel of script.highlightSelectors) {
+            const locatorCode = toLocator(sel);
+            lines.push(
+                `{` +
+                `const locator = ${locatorCode};` +
+                `await locator.first().evaluate(el => {` +
+                `(el as HTMLElement).style.outline = '0.2em solid red';` +
+                `});` +
+                `}`
+            );
+        }
     }
 
     for (const step of script.steps) {
         if (step.action === 'goto' && step.target) {
-            lines.push(`await page.goto(${JSON.stringify(step.target)}, { waitUntil: 'networkidle' });`);
+            lines.push(`await page.goto(${JSON.stringify(step.target)}, { waitUntil: 'domcontentloaded' });`);
+            lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
         } else if (step.action === 'click' && step.target) {
-            lines.push(`await page.click(${JSON.stringify(step.target)});`);
+            lines.push(`await ${toLocator(step.target)}.click();`);
         } else if (step.action === 'fill' && step.target && step.value !== undefined) {
-            lines.push(`await page.fill(${JSON.stringify(step.target)}, ${JSON.stringify(step.value)});`);
+            lines.push(`await ${toLocator(step.target)}.fill(${JSON.stringify(step.value)});`);
         } else if (step.action === 'wait') {
             const ms = parseInt(step.value || '1000', 10);
             const timeout = Number.isFinite(ms) ? ms : 1000;
             lines.push(`await page.waitForTimeout(${timeout});`);
         } else if (step.action === 'assertText' && step.target && step.value !== undefined) {
-            const target = JSON.stringify(step.target);
+            const locatorCode = toLocator(step.target);
             const expected = JSON.stringify(step.value);
             const desc = JSON.stringify(step.description);
             lines.push(
                 `{` +
-                `const locator = page.locator(${target});` +
+                `const locator = ${locatorCode};` +
                 `await locator.waitFor();` +
                 `const text = await locator.textContent();` +
                 `if (!text || !text.includes(${expected})) {` +
