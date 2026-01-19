@@ -48,7 +48,26 @@ function toLocator(target: string): string {
     return `page.locator(${JSON.stringify(t)})`;
 }
 
-export function buildScriptBody(script: WalkthroughScript): string {
+function resolveGotoTarget(target: string, baseUrl?: string): string {
+    const trimmed = target.trim();
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+    }
+
+    if (baseUrl) {
+        try {
+            const url = new URL(trimmed, baseUrl);
+            return url.toString();
+        } catch {
+            return trimmed;
+        }
+    }
+
+    return trimmed;
+}
+
+export function buildScriptBody(script: WalkthroughScript, baseUrl?: string): string {
     const lines: string[] = [];
     lines.push("await page.waitForLoadState('domcontentloaded');");
     // Soft wait for network idle
@@ -95,7 +114,8 @@ export function buildScriptBody(script: WalkthroughScript): string {
 
     for (const step of script.steps) {
         if (step.action === 'goto' && step.target) {
-            lines.push(`await page.goto(${JSON.stringify(step.target)}, { waitUntil: 'domcontentloaded' });`);
+            const resolved = resolveGotoTarget(step.target, baseUrl);
+            lines.push(`await page.goto(${JSON.stringify(resolved)}, { waitUntil: 'domcontentloaded' });`);
             lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
         } else if (step.action === 'click' && step.target) {
             lines.push(`await ${toLocator(step.target)}.click();`);
@@ -138,7 +158,7 @@ export async function runInVirtualEnv(options: VenvRunOptions): Promise<VenvRunR
 
         const hasGoto = options.script.steps.some(step => step.action === 'goto');
         const route = hasGoto ? '' : options.script.entryUrl || '';
-        const scriptBody = buildScriptBody(options.script);
+        const scriptBody = buildScriptBody(options.script, baseUrl);
 
         const result = await runner.run({
             baseUrl,
