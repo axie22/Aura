@@ -55,17 +55,42 @@ export function buildScriptBody(script: WalkthroughScript): string {
     lines.push("try { await page.waitForLoadState('networkidle', { timeout: 5000 }); } catch (e) {}");
 
     if (script.highlightSelectors && script.highlightSelectors.length > 0) {
-        for (const sel of script.highlightSelectors) {
-            const locatorCode = toLocator(sel);
-            lines.push(
-                `{` +
-                `const locator = ${locatorCode};` +
-                `await locator.first().evaluate(el => {` +
-                `(el as HTMLElement).style.outline = '0.2em solid red';` +
-                `});` +
-                `}`
-            );
-        }
+        const selectorsJson = JSON.stringify(script.highlightSelectors);
+        const browserLogic = `(selectors) => {
+            const runHighlight = () => {
+                selectors.forEach(sel => {
+                    try {
+                        const elements = document.querySelectorAll(sel);
+                        elements.forEach(el => {
+                            if (el instanceof HTMLElement) {
+                                el.style.outline = '0.2em solid red';
+                                el.setAttribute('data-aura-highlighted', 'true');
+                            }
+                        });
+                    } catch (e) {}
+                });
+            };
+
+            runHighlight();
+
+            const observer = new MutationObserver(() => {
+                runHighlight();
+            });
+
+            if (document.body) {
+                observer.observe(document.body, { childList: true, subtree: true });
+            } else {
+                window.addEventListener('DOMContentLoaded', () => {
+                    runHighlight();
+                    if (document.body) {
+                        observer.observe(document.body, { childList: true, subtree: true });
+                    }
+                });
+            }
+        }`;
+
+        lines.push(`await page.addInitScript(${browserLogic}, ${selectorsJson});`);
+        lines.push(`await page.evaluate(${browserLogic}, ${selectorsJson});`);
     }
 
     for (const step of script.steps) {
